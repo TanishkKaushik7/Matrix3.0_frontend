@@ -1,16 +1,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-/**
- * Interface for the Institution User [cite: 5, 6, 7, 8]
- */
-// Inside AuthContext.tsx
 interface User {
-  id: string;
+  id: string | number;
   email: string;
   name: string;
   isApproved: boolean; 
-  walletAddress?: string;
-  role: 'admin' | 'issuer'; // <-- ADD THIS LINE
+  role: 'admin' | 'issuer';
+  wallet_connected: boolean;
+  wallet_address: string | null;
 }
 
 interface AuthContextType {
@@ -19,7 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, token: string, userData: User) => void;
   logout: () => void;
-  updateApprovalStatus: (status: boolean) => void;
+  updateWalletStatus: (address: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,47 +26,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Persistence: Check for existing session on mount
+  // Since we are NOT using localStorage, the initial state is always null.
+  // We set isLoading to false immediately on mount.
   useEffect(() => {
-    const storedToken = localStorage.getItem('bn_auth_token');
-    const storedUser = localStorage.getItem('bn_user_data');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
     setIsLoading(false);
   }, []);
 
   /**
-   * Handles the successful login after PasswordStep.tsx
+   * Pure In-Memory Login: Data lives only as long as the tab is open.
    */
-  const login = (email: string, authToken: string, userData: User) => {
+  const login = (_email: string, authToken: string, userData: User) => {
     setToken(authToken);
     setUser(userData);
-    localStorage.setItem('bn_auth_token', authToken);
-    localStorage.setItem('bn_user_data', JSON.stringify(userData));
   };
 
   /**
-   * Clears session and redirects to Home
+   * Pure In-Memory Logout: Wipes RAM and redirects.
    */
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('bn_auth_token');
-    localStorage.removeItem('bn_user_data');
     window.location.href = '/';
   };
 
   /**
-   * Syncs with Admin approval status 
+   * Updates user identity in RAM when MetaMask connects.
    */
-  const updateApprovalStatus = (status: boolean) => {
+  const updateWalletStatus = (address: string) => {
     if (user) {
-      const updatedUser = { ...user, isApproved: status };
-      setUser(updatedUser);
-      localStorage.setItem('bn_user_data', JSON.stringify(updatedUser));
+      setUser({
+        ...user,
+        wallet_connected: true,
+        wallet_address: address
+      });
     }
   };
 
@@ -80,16 +69,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isLoading, 
       login, 
       logout, 
-      updateApprovalStatus 
+      updateWalletStatus 
     }}>
       {!isLoading && children}
     </AuthContext.Provider>
   );
 };
 
-/**
- * Custom hook for accessing Auth state
- */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

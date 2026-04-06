@@ -8,7 +8,7 @@ import {
   Activity,
   ArrowRight,
   Globe,
-  ShieldCheck // <-- Added this missing import
+  ShieldCheck 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -41,20 +41,30 @@ const StatCard = ({ title, value, icon, trend, colorClass, delay }: any) => (
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  // 1. EXTRACT TOKEN FROM RAM
+  const { user, token } = useAuth(); 
   
-  const [issuers, setIssuers] = useState<Issuer[]>([]);
+  // Note: Using 'any' here as a fallback in case your Issuer type interface 
+  // hasn't been updated to match the 'college_name' JSON schema yet.
+  const [issuers, setIssuers] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch real data on mount
   useEffect(() => {
     const fetchStats = async () => {
+      // 2. SECURITY GUARD: Ensure token exists before fetching
+      if (!token) {
+        setError("Session expired. Please log in again.");
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const data = await getIssuers();
+        // 3. PASS TOKEN TO API
+        const data = await getIssuers(token);
         setIssuers(data);
       } catch (err: any) {
-        // Fallback or error handling
         setError(err.message || "Failed to load network stats.");
       } finally {
         setIsLoading(false);
@@ -62,7 +72,7 @@ const AdminDashboard = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [token]); // 4. Add token to dependency array
 
   // Calculate derived stats
   const pendingCount = issuers.filter(i => i.status === 'pending').length;
@@ -140,7 +150,7 @@ const AdminDashboard = () => {
         transition={{ delay: 0.5, duration: 0.4 }}
         className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
-        {/* Left Col: Pending Requests Preview (Takes up 2/3) */}
+        {/* Left Col: Pending Requests Preview */}
         <div className="lg:col-span-2 bg-[#0A0A0C]/60 backdrop-blur-md border border-white/[0.06] rounded-2xl overflow-hidden shadow-[0_8px_16px_-6px_rgba(0,0,0,0.5)]">
           <div className="flex items-center justify-between p-6 border-b border-white/[0.04]">
             <div className="flex items-center gap-3">
@@ -171,7 +181,8 @@ const AdminDashboard = () => {
                 {issuers.filter(i => i.status === 'pending').slice(0, 4).map((issuer) => (
                   <li key={issuer.id} className="p-4 hover:bg-white/[0.02] transition-colors flex items-center justify-between group">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white mb-0.5">{issuer.name}</span>
+                      {/* 5. UPDATED MAPPING TO MATCH JSON: issuer.college_name */}
+                      <span className="text-sm font-medium text-white mb-0.5">{issuer.college_name || issuer.name}</span>
                       <span className="text-[11px] font-mono text-[#8A8F98]">{issuer.email}</span>
                     </div>
                     <button 
@@ -188,7 +199,6 @@ const AdminDashboard = () => {
         </div>
 
         {/* Right Col: System Health / Info */}
-        {/* THIS WRAPPER WAS MISSING */}
         <div className="bg-[#0A0A0C]/60 backdrop-blur-md border border-white/[0.06] rounded-2xl p-6 shadow-[0_8px_16px_-6px_rgba(0,0,0,0.5)] flex flex-col">
           <div className="flex items-center gap-3 mb-6">
             <ShieldCheck size={18} className="text-[#5E6AD2]" />

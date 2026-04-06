@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-// Logic to catch if the .env variable is missing
-const API_BASE = import.meta.env.VITE_API_URL;
+const RAW_API_BASE = import.meta.env.VITE_API_URL;
+// Ensures no trailing slash logic for consistent API routing
+const API_BASE = RAW_API_BASE?.endsWith('/') ? RAW_API_BASE.slice(0, -1) : RAW_API_BASE;
 
 export const useAuthFlow = () => {
   const { login } = useAuth();
@@ -15,6 +16,7 @@ export const useAuthFlow = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Basic institutional email validation regex
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputEmail)) {
         throw new Error("Please enter a valid institutional email.");
       }
@@ -28,9 +30,8 @@ export const useAuthFlow = () => {
   };
 
   const submitPassword = async (password: string) => {
-    // Safety check: if API_BASE is missing, don't even try to fetch
     if (!API_BASE) {
-      setError("Configuration Error: VITE_API_URL is not defined in .env");
+      setError("Configuration Error: VITE_API_URL is missing.");
       return;
     }
 
@@ -44,15 +45,14 @@ export const useAuthFlow = () => {
         body: JSON.stringify({ email, password }),
       });
 
-      // 1. Check if the response is actually JSON before parsing
+      // Guard against non-JSON error pages (like 404 or 500 HTML)
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(`Server error: Expected JSON but got ${contentType || 'text'}. (Status: ${response.status})`);
+        throw new Error(`Server connection failed (Status: ${response.status}).`);
       }
 
       const data = await response.json();
 
-      // 2. Handle Logic Errors
       if (!response.ok) {
         if (Array.isArray(data.detail)) {
           throw new Error(data.detail[0].msg);
@@ -60,19 +60,24 @@ export const useAuthFlow = () => {
         throw new Error(data.detail || "Authentication failed");
       }
 
-      // 3. Success Login
+      /**
+       * PURE IN-MEMORY STATE INJECTION
+       * Backend response mapping: 
+       * { access_token, role, wallet_connected, wallet_address, issuer_id }
+       */
       login(email, data.access_token, {
-        id: `user_${Date.now()}`, 
+        id: data.issuer_id, 
         email: email,
-        name: email.split('@')[0],
-        isApproved: true, 
-        role: data.role as 'admin' | 'issuer'
+        name: email.split('@')[0], // UI placeholder for Name
+        role: data.role as 'admin' | 'issuer',
+        isApproved: true, // Assuming login permission implies approval
+        wallet_connected: data.wallet_connected, 
+        wallet_address: data.wallet_address 
       });
 
     } catch (err: any) {
-      // Handle Network errors (Server down)
       if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
-        setError("Network error: Cannot reach the backend. Is it running?");
+        setError("Network error: BhoomiNet Node is unreachable.");
       } else {
         setError(err.message);
       }
