@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// Logic to catch if the .env variable is missing
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export const useAuthFlow = () => {
   const { login } = useAuth();
@@ -10,16 +11,13 @@ export const useAuthFlow = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Phase 1: Local validation (or optional backend check)
   const verifyEmail = async (inputEmail: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Basic email validation regex
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputEmail)) {
-        throw new Error("Please enter a valid email address.");
+        throw new Error("Please enter a valid institutional email.");
       }
-      
       setEmail(inputEmail);
       setStep(2);
     } catch (err: any) {
@@ -29,8 +27,13 @@ export const useAuthFlow = () => {
     }
   };
 
-  // Phase 2: Real Backend Authentication
   const submitPassword = async (password: string) => {
+    // Safety check: if API_BASE is missing, don't even try to fetch
+    if (!API_BASE) {
+      setError("Configuration Error: VITE_API_URL is not defined in .env");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -41,25 +44,38 @@ export const useAuthFlow = () => {
         body: JSON.stringify({ email, password }),
       });
 
+      // 1. Check if the response is actually JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Server error: Expected JSON but got ${contentType || 'text'}. (Status: ${response.status})`);
+      }
+
       const data = await response.json();
 
+      // 2. Handle Logic Errors
       if (!response.ok) {
-        // Handle specific 403 (Not Approved) vs 401 (Wrong Creds)
+        if (Array.isArray(data.detail)) {
+          throw new Error(data.detail[0].msg);
+        }
         throw new Error(data.detail || "Authentication failed");
       }
 
-      // Success: data contains { access_token, token_type, role }
-      // We map this to your existing AuthContext login function
+      // 3. Success Login
       login(email, data.access_token, {
-        id: "user_from_token", // You can decode JWT for ID if needed
+        id: `user_${Date.now()}`, 
         email: email,
-        name: email.split('@')[0], // Placeholder name
-        isApproved: true,
+        name: email.split('@')[0],
+        isApproved: true, 
         role: data.role as 'admin' | 'issuer'
       });
 
     } catch (err: any) {
-      setError(err.message);
+      // Handle Network errors (Server down)
+      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+        setError("Network error: Cannot reach the backend. Is it running?");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setIsLoading(false);
     }
