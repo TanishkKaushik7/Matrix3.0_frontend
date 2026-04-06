@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  ExternalLink, 
   CheckCircle2, 
   XCircle,
   Clock,
   Inbox
 } from 'lucide-react';
 import Input from '../components/ui/Input';
+import { useAuth } from '../context/AuthContext'; // 1. Import useAuth
 import { getIssuers, updateIssuerStatus, type Issuer } from '../services/adminApi';
 
 const AdminRequests = () => {
+  // 2. Extract token from context
+  const { token } = useAuth();
+
   const [requests, setRequests] = useState<Issuer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +24,10 @@ const AdminRequests = () => {
   // Fetch only pending requests
   useEffect(() => {
     const fetchPending = async () => {
+      if (!token) return; // Guard clause
       try {
-        const data = await getIssuers('pending');
+        // 3. Pass token to API
+        const data = await getIssuers(token, 'pending');
         setRequests(data);
       } catch (err: any) {
         setError(err.message || "Failed to load pending requests.");
@@ -31,12 +36,14 @@ const AdminRequests = () => {
       }
     };
     fetchPending();
-  }, []);
+  }, [token]); // Add token to dependency array
 
   const handleAction = async (id: string | number, action: 'approved' | 'rejected') => {
+    if (!token) return;
     setProcessingId(id);
     try {
-      await updateIssuerStatus(id, action);
+      // 4. Pass token to API
+      await updateIssuerStatus(id, action, token);
       // Remove the processed request from the UI
       setRequests(prev => prev.filter(req => req.id !== id));
     } catch (err: any) {
@@ -46,8 +53,9 @@ const AdminRequests = () => {
     }
   };
 
+  // 5. Update filtering to use college_name
   const filtered = requests.filter(o =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
+    (o.college_name && o.college_name.toLowerCase().includes(search.toLowerCase())) ||
     o.email.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -125,9 +133,9 @@ const AdminRequests = () => {
                     {/* Institution */}
                     <td className="p-5">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-white">{org.name}</span>
+                        <span className="text-sm font-medium text-white">{org.college_name}</span>
                       </div>
-                      <span className="text-[11px] font-mono text-[#8A8F98]">ID: {org.id}</span>
+                      <span className="text-[11px] font-mono text-[#8A8F98]">ID: {org.college_id}</span>
                     </td>
 
                     {/* Contact */}

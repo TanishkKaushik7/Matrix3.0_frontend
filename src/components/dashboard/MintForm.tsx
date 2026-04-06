@@ -1,29 +1,48 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ethers } from 'ethers';
 import { 
-  Plus, 
-  Upload, 
-  ShieldCheck, 
-  Hash, 
-  Globe, 
-  Zap, 
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  X
+  Hash, Zap, FileText, CheckCircle2, AlertCircle, X, User, 
+  Calendar, GraduationCap, Fingerprint, Loader2 
 } from 'lucide-react';
+import { createCertificate } from '../../services/issuerApi';
+import { useAuth } from '../../context/AuthContext';
 
-// Define the Props Interface to fix the TypeScript error
+// --- THE FIX IS HERE ---
+// This must be exactly 42 characters starting with 0x. 
+// Replace this dummy address with your REAL deployed contract address later!
+const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138"; 
+
+// UPDATED ABI: No student address required anymore.
+const CONTRACT_ABI = [
+  "function mintCertificate(string cid, bytes32 hash) public"
+];
+
+// 80002 is Polygon Amoy Testnet. Use 137 for Polygon Mainnet.
+const TARGET_CHAIN_ID = 80002n; 
+
 interface MintFormProps {
   onCancel?: () => void;
 }
 
 const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [isMinting, setIsMinting] = useState(false);
-  const [step, setStep] = useState<'idle' | 'uploading' | 'signing' | 'success'>('idle');
+  const { token, user } = useAuth();
+
+  // --- Form State Aligned with FastAPI Schema ---
+  const [rollNumber, setRollNumber] = useState('');
+  const [studentName, setStudentName] = useState('');
+  const [courseProgram, setCourseProgram] = useState('');
+  const [passingYear, setPassingYear] = useState('');
+  const [cgpa, setCgpa] = useState('');
+
+  // --- Blockchain Payload State ---
+  const [blockchainData, setBlockchainData] = useState<{cid: string, hash: string} | null>(null);
+
+  // --- UX State ---
+  const [step, setStep] = useState<'idle' | 'hashing' | 'ready_to_mint' | 'minting' | 'success'>('idle');
+  const [error, setError] = useState<string | null>(null);
   
-  // Interactive Spotlight logic
+  // Spotlight logic for UI
   const divRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -34,24 +53,107 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  const handleMint = async (e: React.FormEvent) => {
+  // --- STEP 1: Backend Payload Generation ---
+  const handleGeneratePayload = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsMinting(true);
+    setError(null);
     
-    setStep('uploading');
-    await new Promise(r => setTimeout(r, 1500));
+    if (!token) {
+      setError("Session expired. Please log in again.");
+      return;
+    }
+
+    setStep('hashing'); 
     
-    setStep('signing');
-    await new Promise(r => setTimeout(r, 2000));
-    
-    setStep('success');
-    setIsMinting(false);
+    try {
+      const payload = {
+        roll_number: rollNumber,
+        student_name: studentName,
+        course_program: courseProgram,
+        passing_year: parseInt(passingYear), 
+        cgpa: parseFloat(cgpa)              
+      };
+
+      // Calls backend -> generates PDF -> uploads to IPFS -> returns CID & Hash
+      const result = await createCertificate(payload, token);
+      
+      setBlockchainData({ cid: result.cid, hash: result.hash });
+      setStep('ready_to_mint');
+
+    } catch (err: any) {
+      setError(err.message || "Failed to generate payload. Is the backend online?");
+      setStep('idle');
+    }
+  };
+
+  // --- STEP 2 to 9: MetaMask Smart Contract Call ---
+  const handleBlockchainMint = async () => {
+    setError(null);
+    setStep('minting');
+
+    try {
+      if (!window.ethereum) {
+        throw new Error("MetaMask is not installed!");
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const connectedWallet = await signer.getAddress();
+
+      // Strict Wallet Match Check
+      if (user?.wallet_address && connectedWallet.toLowerCase() !== user.wallet_address.toLowerCase()) {
+        throw new Error(`Wrong wallet connected. Please switch to your registered issuer wallet: ${user.wallet_address.slice(0,6)}...`);
+      }
+
+      // Network Check
+      const network = await provider.getNetwork();
+      if (network.chainId !== TARGET_CHAIN_ID) {
+        throw new Error("Please switch your MetaMask to the Polygon Amoy Network.");
+      }
+
+      if (!blockchainData) throw new Error("Missing IPFS data.");
+
+      // Connect Smart Contract
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      // Call mintCertificate (Triggers MetaMask Popup - NO STUDENT WALLET NEEDED)
+      const tx = await contract.mintCertificate(
+        blockchainData.cid, // IPFS CID from backend
+        blockchainData.hash // Data Hash from backend
+      );
+
+      // Wait for Blockchain Confirmation
+      const receipt = await tx.wait();
+      
+      console.log("Transaction Mined! Receipt:", receipt);
+      setStep('success');
+
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+        setError("Transaction was rejected in MetaMask.");
+        setStep('ready_to_mint'); 
+      } else {
+        setError(err.message || "Smart contract execution failed.");
+        setStep('ready_to_mint');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setStep('idle');
+    setRollNumber('');
+    setStudentName('');
+    setCourseProgram('');
+    setPassingYear('');
+    setCgpa('');
+    setBlockchainData(null);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="max-w-3xl mx-auto space-y-8 pb-20 relative">
       
-      {/* Dynamic Header with Cancel Action */}
       <div className="flex items-end justify-between border-b border-white/[0.06] pb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -69,6 +171,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         
         {onCancel && (
           <button 
+            type="button"
             onClick={onCancel}
             className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs font-medium text-[#8A8F98] hover:text-white hover:bg-white/[0.08] transition-all"
           >
@@ -85,7 +188,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         onMouseLeave={() => setIsFocused(false)}
         className="relative group bg-[#0A0A0C]/60 backdrop-blur-md border border-white/[0.08] rounded-2xl overflow-hidden shadow-2xl"
       >
-        {/* Spotlight Overlay */}
         <div 
           className="pointer-events-none absolute -inset-px transition-opacity duration-500"
           style={{
@@ -94,164 +196,147 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
           }}
         />
 
-        {/* Top Metallic Highlight */}
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[#5E6AD2]/40 to-transparent" />
 
-        <form onSubmit={handleMint} className="p-10 space-y-10 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            
-            {/* Metadata Fields */}
-            <div className="space-y-6">
+        <form onSubmit={handleGeneratePayload} className="p-8 md:p-10 relative z-10">
+          
+          {error && step === 'idle' && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+              <AlertCircle size={18} />
+              {error}
+            </motion.div>
+          )}
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <Hash size={12} /> Student ID
+                  <Hash size={12} className="text-[#5E6AD2]" /> Roll Number
                 </label>
-                <input 
-                  required
-                  type="text"
-                  placeholder="e.g. GBU-CS-2024-042"
-                  className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-[#3A3A40]"
-                />
+                <input required value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} type="text" placeholder="e.g. UNI123" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
               </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <Plus size={12} /> Student Wallet
+                  <User size={12} className="text-[#5E6AD2]" /> Student Name
                 </label>
-                <input 
-                  required
-                  type="text"
-                  placeholder="0x..."
-                  className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3 text-sm font-mono text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-[#3A3A40]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <FileText size={12} /> Achievement Type
-                </label>
-                <input 
-                  required
-                  type="text"
-                  placeholder="B.Tech Degree / Internship"
-                  className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-[#3A3A40]"
-                />
+                <input required value={studentName} onChange={(e) => setStudentName(e.target.value)} type="text" placeholder="Akshit Singh" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600" />
               </div>
             </div>
 
-            {/* Asset Upload */}
             <div className="space-y-2">
-              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1">
-                Certificate Asset
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
+                <FileText size={12} className="text-[#5E6AD2]" /> Course Program
               </label>
-              <div className="h-full min-h-[220px] border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02] flex flex-col items-center justify-center group/upload hover:border-[#5E6AD2]/40 hover:bg-[#5E6AD2]/5 transition-all cursor-pointer relative overflow-hidden">
-                <input 
-                  type="file" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-                <div className="bg-white/[0.05] p-5 rounded-2xl mb-4 group-hover/upload:scale-110 group-hover/upload:bg-[#5E6AD2]/20 transition-all duration-500">
-                  <Upload size={28} className="text-[#8A8F98] group-hover/upload:text-[#5E6AD2]" />
-                </div>
-                <p className="text-sm text-white font-medium">
-                  {file ? file.name : "Drop certificate file"}
-                </p>
-                <p className="text-[10px] text-[#8A8F98] mt-2 uppercase tracking-widest">
-                   PDF, PNG up to 5MB
-                </p>
+              <input required value={courseProgram} onChange={(e) => setCourseProgram(e.target.value)} type="text" placeholder="Bachelor of Technology in Computer Science" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
+                  <Calendar size={12} className="text-[#5E6AD2]" /> Passing Year
+                </label>
+                <input required value={passingYear} onChange={(e) => setPassingYear(e.target.value)} type="number" placeholder="2026" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
+                  <GraduationCap size={12} className="text-[#5E6AD2]" /> Cumulative GPA
+                </label>
+                <input required value={cgpa} onChange={(e) => setCgpa(e.target.value)} type="number" step="0.01" max="10" placeholder="8.74" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
               </div>
             </div>
           </div>
 
-          {/* Action Footer */}
-          <div className="pt-8 border-t border-white/[0.06] flex items-center justify-between">
+          <div className="mt-10 pt-8 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98]">
-                BhoomiNet Node: Operational
+                Backend Node: Online
               </span>
             </div>
 
-            <div className="flex items-center gap-4">
-              {onCancel && (
-                <button 
-                  type="button"
-                  onClick={onCancel}
-                  className="px-6 py-3 text-sm font-medium text-[#8A8F98] hover:text-white transition-colors"
-                >
-                  Discard
-                </button>
-              )}
-              <button
-                disabled={isMinting}
-                className="px-8 py-3 bg-[#5E6AD2] hover:bg-[#6872D9] text-white text-sm font-semibold rounded-xl shadow-[0_0_30px_rgba(94,106,210,0.3)] disabled:opacity-50 transition-all flex items-center gap-2 active:scale-[0.98]"
-              >
-                {isMinting ? "Processing..." : "Mint Certificate"} 
-                <Zap size={16} fill="currentColor" />
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full md:w-auto px-8 py-3.5 bg-[#5E6AD2] hover:bg-[#6872D9] text-white text-sm font-semibold rounded-xl shadow-[0_0_30px_rgba(94,106,210,0.3)] transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+            >
+              Generate Payload <FileText size={16} />
+            </button>
           </div>
         </form>
 
-        {/* Dynamic Progress Overlays */}
+        {/* --- DYNAMIC UX OVERLAYS --- */}
         <AnimatePresence>
-          {isMinting && (
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-center"
-            >
-              <div className="relative w-20 h-20 mb-8">
-                <div className="absolute inset-0 border-4 border-[#5E6AD2]/20 rounded-full" />
-                <div className="absolute inset-0 border-4 border-[#5E6AD2] border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(94,106,210,0.4)]" />
-              </div>
-              <h3 className="text-2xl font-semibold text-white mb-2 tracking-tight">
-                {step === 'uploading' ? 'Publishing to IPFS' : 'Signing Transaction'}
-              </h3>
-              <p className="text-sm text-[#8A8F98] max-w-xs leading-relaxed">
-                {step === 'uploading' 
-                  ? 'Establishing a decentralized document hash via IPFS protocol.' 
-                  : 'Validating cryptographic keys on the Polygon Amoy registry.'}
-              </p>
+          
+          {/* STATE: 1. Hashing / Uploading to IPFS */}
+          {step === 'hashing' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-center">
+              <Loader2 size={48} className="text-[#5E6AD2] animate-spin mb-6" />
+              <h3 className="text-2xl font-semibold text-white mb-2 tracking-tight">Generating Immutable Hash...</h3>
+              <p className="text-sm text-[#8A8F98]">Structuring metadata and securing decentralized storage.</p>
             </motion.div>
           )}
 
+          {/* STATE: 2. Ready to Mint (Wait for MetaMask Trigger) */}
+          {step === 'ready_to_mint' && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center p-10 text-center">
+              <div className="w-20 h-20 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(94,106,210,0.1)]">
+                <CheckCircle2 size={44} className="text-[#5E6AD2]" />
+              </div>
+              <h3 className="text-3xl font-bold text-white mb-3">Ready to Mint</h3>
+              <p className="text-[#8A8F98] text-sm mb-8 max-w-sm">
+                Payload generated successfully. Please sign the transaction using your authorized issuer wallet to record it on Polygon.
+              </p>
+              
+              {/* Overlay Error Display */}
+              {error && (
+                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg max-w-sm text-balance">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button onClick={() => setStep('idle')} className="px-6 py-3 bg-white/[0.03] border border-white/10 rounded-xl text-sm text-white">Cancel</button>
+                <button onClick={handleBlockchainMint} className="px-8 py-3 bg-[#5E6AD2] text-white font-bold rounded-xl shadow-[0_0_30px_rgba(94,106,210,0.4)] flex items-center gap-2 transition-transform active:scale-[0.98]">
+                  Confirm on MetaMask <Zap size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STATE: 3. Minting (Waiting for Blockchain Confirmation) */}
+          {step === 'minting' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-[70] flex flex-col items-center justify-center p-6 text-center">
+              <div className="relative w-24 h-24 mb-8">
+                <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full" />
+                <div className="absolute inset-0 border-4 border-amber-500 border-t-transparent rounded-full animate-spin shadow-[0_0_30px_rgba(245,158,11,0.3)]" />
+              </div>
+              <h3 className="text-2xl font-semibold text-white mb-2">Awaiting Blockchain Confirmation</h3>
+              <p className="text-sm text-amber-500/80 animate-pulse">Please check your MetaMask popup and approve the transaction.</p>
+            </motion.div>
+          )}
+
+          {/* STATE: 4. Success! */}
           {step === 'success' && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 bg-[#050506] z-[60] flex flex-col items-center justify-center p-10 text-center"
-            >
-              <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="absolute inset-0 bg-[#050506] z-[80] flex flex-col items-center justify-center p-10 text-center">
+              <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.15)]">
                 <CheckCircle2 size={44} className="text-emerald-500" />
               </div>
-              <h3 className="text-3xl font-bold text-white mb-3">Asset Authenticated</h3>
-              <p className="text-[#8A8F98] text-sm mb-10 max-w-sm leading-relaxed">
-                The certificate hash is now immutable on the blockchain. 
-                Transaction confirmed on the Polygon Amoy network.
+              <h3 className="text-3xl font-bold text-white mb-3">Certificate Issued ✅</h3>
+              <p className="text-slate-400 text-sm mb-10 max-w-md leading-relaxed">
+                The transaction has been successfully mined on Polygon. The certificate hash for student <span className="font-mono text-white">{rollNumber}</span> is now an immutable public record.
               </p>
               <div className="flex gap-4">
-                <button 
-                  onClick={() => setStep('idle')}
-                  className="px-8 py-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-sm font-medium text-white transition-all"
-                >
-                  Issue Another
-                </button>
-                <button className="px-8 py-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#5E6AD2] rounded-xl text-sm font-medium hover:bg-[#5E6AD2]/20 transition-all">
-                  Explorer Link
+                <button onClick={resetForm} className="px-8 py-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-sm font-medium text-white transition-all">Issue Another</button>
+                <button className="px-8 py-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#5E6AD2] rounded-xl text-sm font-medium hover:bg-[#5E6AD2]/20 transition-all flex items-center gap-2">
+                  <Fingerprint size={14} /> View on PolygonScan
                 </button>
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       </motion.div>
-
-      {/* Permanence Disclaimer */}
-      <div className="flex items-start gap-4 p-5 rounded-2xl bg-amber-500/[0.03] border border-amber-500/10">
-        <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-[#8A8F98] leading-relaxed uppercase tracking-[0.05em]">
-          Permanent Action Protocol: Once recorded on the blockchain registry, Keccak256 hashes are immutable. 
-          Verification of student data is the responsibility of the issuer prior to signing.
-        </p>
-      </div>
     </div>
   );
 };
