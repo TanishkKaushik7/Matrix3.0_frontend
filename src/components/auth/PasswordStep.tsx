@@ -1,35 +1,32 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Eye, EyeOff, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader2, CheckCircle2, ShieldAlert, ChevronLeft } from 'lucide-react';
 
+// Interface strictly aligned with LoginPage.tsx
 interface PasswordStepProps {
   email: string;
-  isFirstTime: boolean; // Derived from your backend check in Step 1
-  onFinalSuccess: (token: string) => void;
+  onSubmit: (password: string) => Promise<void>;
   onBack: () => void;
+  isLoading: boolean;
+  externalError: string | null;
+  isFirstTime?: boolean; // Optional: derived from backend whitelisting check
 }
 
-const PasswordStep = ({ email, isFirstTime, onFinalSuccess, onBack }: PasswordStepProps) => {
+const PasswordStep = ({ 
+  email, 
+  onSubmit, 
+  onBack, 
+  isLoading, 
+  externalError, 
+  isFirstTime = false 
+}: PasswordStepProps) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // API call to FastAPI: /auth/login or /auth/set-password
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // On success, pass the JWT/Session token back to the AuthContext
-      onFinalSuccess("mock_jwt_token_bhoominet");
-    } catch (err) {
-      setError("Invalid password. Please try again or contact admin.");
-    } finally {
-      setIsLoading(false);
+    if (password.length >= 6) {
+      await onSubmit(password);
     }
   };
 
@@ -44,24 +41,25 @@ const PasswordStep = ({ email, isFirstTime, onFinalSuccess, onBack }: PasswordSt
       <div className="space-y-2">
         <button 
           onClick={onBack}
-          className="text-xs text-accent hover:text-accent-bright transition-colors mb-2 flex items-center gap-1"
+          className="text-[11px] font-mono uppercase tracking-widest text-[#5E6AD2] hover:text-[#6872D9] transition-colors mb-2 flex items-center gap-1 group"
         >
-          ← {email}
+          <ChevronLeft size={12} className="group-hover:-translate-x-0.5 transition-transform" />
+          {email}
         </button>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-white">
           {isFirstTime ? "Create your password" : "Enter password"}
         </h2>
-        <p className="text-sm text-foreground-muted">
+        <p className="text-sm text-[#8A8F98]">
           {isFirstTime 
             ? "Your account was approved. Set a secure password to begin issuing." 
             : "Authorized personnel only. Please verify your identity."}
         </p>
       </div>
 
-      <form onSubmit={handleAuth} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Lock size={18} className="text-foreground-subtle group-focus-within:text-accent transition-colors" />
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <Lock size={18} className="text-[#8A8F98] group-focus-within:text-[#5E6AD2] transition-colors" />
           </div>
           <input
             type={showPassword ? "text" : "password"}
@@ -70,38 +68,41 @@ const PasswordStep = ({ email, isFirstTime, onFinalSuccess, onBack }: PasswordSt
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-[#0F0F12] border border-white/10 rounded-lg pl-10 pr-12 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all font-mono"
+            className="w-full bg-[#0F0F12] border border-white/10 rounded-lg pl-11 pr-12 py-3 text-[#EDEDEF] focus:outline-none focus:ring-2 focus:ring-[#5E6AD2]/50 focus:border-[#5E6AD2] transition-all font-mono"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-foreground-subtle hover:text-foreground transition-colors"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#8A8F98] hover:text-[#EDEDEF] transition-colors"
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
 
-        {error && (
-          <div className="flex items-center gap-2 text-xs text-red-400 ml-1">
+        {/* Displaying Error from useAuthFlow hook */}
+        {externalError && (
+          <div className="flex items-center gap-2 text-[11px] font-medium text-red-500 ml-1">
             <ShieldAlert size={14} />
-            <span>{error}</span>
+            <span>{externalError}</span>
           </div>
         )}
 
         <button
           type="submit"
           disabled={isLoading || password.length < 6}
-          className="relative w-full bg-accent hover:bg-accent-bright disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_0_20px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group overflow-hidden"
+          className="relative w-full bg-[#5E6AD2] hover:bg-[#6872D9] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_4px_12px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group overflow-hidden"
         >
-          {/* Subtle Shimmer Effect on Hover */}
+          {/* Shimmer Effect */}
           <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-700 ease-in-out" />
           
           {isLoading ? (
             <Loader2 size={20} className="animate-spin" />
           ) : (
             <>
-              {isFirstTime ? "Initialize Account" : "Access Dashboard"}
-              <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="relative z-10 flex items-center gap-2">
+                {isFirstTime ? "Initialize Account" : "Access Dashboard"}
+                <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100" />
+              </span>
             </>
           )}
         </button>
@@ -109,8 +110,8 @@ const PasswordStep = ({ email, isFirstTime, onFinalSuccess, onBack }: PasswordSt
 
       {/* Security Footnote */}
       <div className="pt-4 border-t border-white/[0.06] text-center">
-        <p className="text-[10px] text-foreground-subtle uppercase tracking-widest">
-          Secured via AES-256 Encryption & Polygon Proof of Stake
+        <p className="text-[10px] text-[#8A8F98] uppercase tracking-[0.2em] font-mono">
+          AES-256 Encryption & Polygon PoS
         </p>
       </div>
     </motion.div>

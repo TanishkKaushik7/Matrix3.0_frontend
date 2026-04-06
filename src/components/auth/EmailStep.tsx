@@ -2,33 +2,20 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Mail, Loader2, ShieldCheck } from 'lucide-react';
 
+// Interface aligned with LoginPage.tsx usage
 interface EmailStepProps {
-  onSuccess: (email: string, isApproved: boolean) => void;
+  onSubmit: (email: string) => Promise<void>;
+  isLoading: boolean;
+  externalError: string | null;
 }
 
-const EmailStep = ({ onSuccess }: EmailStepProps) => {
+const EmailStep = ({ onSubmit, isLoading, externalError }: EmailStepProps) => {
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleVerifyEmail = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Mock API call to FastAPI backend to check if institution exists/is approved
-      // const response = await api.post('/auth/check-email', { email });
-      
-      // Simulation delay for that premium "processing" feel
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      // Example logic: if verified, move to password; else show pending/error
-      onSuccess(email, true); 
-    } catch (err) {
-      setError("This email isn't associated with a verified institution.");
-    } finally {
-      setIsLoading(false);
+    if (email) {
+      await onSubmit(email);
     }
   };
 
@@ -40,18 +27,18 @@ const EmailStep = ({ onSuccess }: EmailStepProps) => {
       className="space-y-6"
     >
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-white">
           Welcome back
         </h2>
-        <p className="text-sm text-foreground-muted">
+        <p className="text-sm text-[#8A8F98]">
           Enter your institutional email to access the BhoomiNet portal.
         </p>
       </div>
 
-      <form onSubmit={handleVerifyEmail} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Mail size={18} className="text-foreground-subtle group-focus-within:text-accent transition-colors" />
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <Mail size={18} className="text-[#8A8F98] group-focus-within:text-[#5E6AD2] transition-colors" />
           </div>
           <input
             type="email"
@@ -59,41 +46,46 @@ const EmailStep = ({ onSuccess }: EmailStepProps) => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@university.edu"
-            className="w-full bg-[#0F0F12] border border-white/10 rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+            className="w-full bg-[#0F0F12] border border-white/10 rounded-lg pl-11 pr-4 py-3 text-[#EDEDEF] placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#5E6AD2]/50 focus:border-[#5E6AD2] transition-all font-sans"
           />
         </div>
 
-        {error && (
+        {/* Displaying error from useAuthFlow hook */}
+        {externalError && (
           <motion.p 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
-            className="text-xs text-red-400 ml-1"
+            className="text-[11px] font-medium text-red-500 ml-1"
           >
-            {error}
+            {externalError}
           </motion.p>
         )}
 
         <button
           type="submit"
           disabled={isLoading || !email}
-          className="w-full bg-accent hover:bg-accent-bright disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_0_20px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+          className="w-full bg-[#5E6AD2] hover:bg-[#6872D9] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_4px_12px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group relative overflow-hidden"
         >
           {isLoading ? (
             <Loader2 size={20} className="animate-spin" />
           ) : (
             <>
-              Continue
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              <span className="relative z-10 flex items-center gap-2">
+                Continue
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </span>
+              {/* Subtle shimmer effect on hover */}
+              <div className="absolute inset-0 w-1/2 h-full bg-white/10 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-700 ease-in-out" />
             </>
           )}
         </button>
       </form>
 
       <div className="pt-4 border-t border-white/[0.06]">
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <ShieldCheck size={18} className="text-accent shrink-0 mt-0.5" />
-          <p className="text-[11px] leading-relaxed text-foreground-subtle uppercase tracking-wider">
-            Access is restricted to whitelisted organizations. Your IP and credentials are logged for security.
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <ShieldCheck size={18} className="text-[#5E6AD2] shrink-0 mt-0.5" />
+          <p className="text-[10px] leading-relaxed text-[#8A8F98] uppercase tracking-widest font-mono">
+            Institutional access only. All authentication attempts are cryptographically logged.
           </p>
         </div>
       </div>
