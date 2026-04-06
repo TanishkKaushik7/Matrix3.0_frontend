@@ -2,14 +2,18 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-
 // Pages
 import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import VerifyPage from './pages/VerifyPage';
 import Dashboard from './pages/Dashboard';
-import Admin from './pages/Admin';
+
+// Admin Pages & Layout
+import AdminLayout from './components/layouts/AdminLayout';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRequests from './pages/AdminRequests';
+import AdminIssuers from './pages/AdminIssuers';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -32,6 +36,7 @@ const AppContent = () => {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify" element={<VerifyPage />} />
 
+          {/* Issuer Dashboard */}
           <Route 
             path="/dashboard/*" 
             element={
@@ -41,7 +46,21 @@ const AppContent = () => {
             } 
           />
 
-          <Route path="/admin" element={<Admin />} />
+          {/* Internal Admin: Nested Layout Structure */}
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* The "index" route loads automatically at /admin */}
+            <Route index element={<AdminDashboard />} />
+            <Route path="requests" element={<AdminRequests />} />
+            <Route path="issuers" element={<AdminIssuers />} />
+          </Route>
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

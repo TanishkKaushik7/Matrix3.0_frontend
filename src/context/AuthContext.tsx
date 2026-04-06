@@ -3,12 +3,14 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 /**
  * Interface for the Institution User [cite: 5, 6, 7, 8]
  */
+// Inside AuthContext.tsx
 interface User {
   id: string;
   email: string;
   name: string;
-  isApproved: boolean; // Managed by Admin 
+  isApproved: boolean; 
   walletAddress?: string;
+  role: 'admin' | 'issuer'; // <-- ADD THIS LINE
 }
 
 interface AuthContextType {

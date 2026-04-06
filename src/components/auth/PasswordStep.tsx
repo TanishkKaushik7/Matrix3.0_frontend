@@ -39,13 +39,6 @@ const PasswordStep = ({
     >
       {/* Header with Breadcrumb-like "Back" option */}
       <div className="space-y-2">
-        <button 
-          onClick={onBack}
-          className="text-[11px] font-mono uppercase tracking-widest text-[#5E6AD2] hover:text-[#6872D9] transition-colors mb-2 flex items-center gap-1 group"
-        >
-          <ChevronLeft size={12} className="group-hover:-translate-x-0.5 transition-transform" />
-          {email}
-        </button>
         <h2 className="text-2xl font-semibold tracking-tight text-white">
           {isFirstTime ? "Create your password" : "Enter password"}
         </h2>
