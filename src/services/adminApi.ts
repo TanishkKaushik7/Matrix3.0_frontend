@@ -1,5 +1,9 @@
-// Define the base URL from your backend guide
-const API_BASE = "http://127.0.0.1:8000";
+// --- 1. SYNC THE URL ---
+// Using the .env variable ensures Admin and Login hit the same Tailscale endpoint
+const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// Clean the base URL: Remove any trailing slashes to prevent //auth/login issues
+const API_BASE = RAW_API_BASE.endsWith('/') ? RAW_API_BASE.slice(0, -1) : RAW_API_BASE;
 
 // --- TypeScript Interfaces ---
 export type IssuerStatus = 'pending' | 'approved' | 'rejected';
@@ -10,8 +14,6 @@ export interface Issuer {
   email: string;
   status: IssuerStatus;
   wallet_address: string | null;
-  // Adding a mock date field since your UI uses it, 
-  // you might need to add this to your FastAPI backend later!
   created_at?: string; 
 }
 
@@ -28,12 +30,11 @@ const getAuthHeaders = () => {
 
 /**
  * Fetch all issuers, optionally filtered by status
- * GET /admin/issuers?status=pending
+ * Uses template literals carefully to avoid double slashes
  */
 export const getIssuers = async (status?: IssuerStatus): Promise<Issuer[]> => {
-  const url = status 
-    ? `${API_BASE}/admin/issuers?status=${status}`
-    : `${API_BASE}/admin/issuers`;
+  const endpoint = status ? `/admin/issuers?status=${status}` : '/admin/issuers';
+  const url = `${API_BASE}${endpoint}`;
 
   const res = await fetch(url, {
     method: 'GET',
@@ -53,7 +54,9 @@ export const getIssuers = async (status?: IssuerStatus): Promise<Issuer[]> => {
  * PATCH /admin/issuers/{issuer_id}/status
  */
 export const updateIssuerStatus = async (issuerId: string | number, status: IssuerStatus) => {
-  const res = await fetch(`${API_BASE}/admin/issuers/${issuerId}/status`, {
+  const url = `${API_BASE}/admin/issuers/${issuerId}/status`;
+  
+  const res = await fetch(url, {
     method: 'PATCH',
     headers: getAuthHeaders(),
     body: JSON.stringify({ status }),
@@ -72,7 +75,9 @@ export const updateIssuerStatus = async (issuerId: string | number, status: Issu
  * POST /admin/whitelist-wallet
  */
 export const whitelistWallet = async (issuerId: string | number, walletAddress: string) => {
-  const res = await fetch(`${API_BASE}/admin/whitelist-wallet`, {
+  const url = `${API_BASE}/admin/whitelist-wallet`;
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({
