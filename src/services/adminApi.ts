@@ -1,25 +1,30 @@
 // --- 1. SYNC THE URL ---
-// Using the .env variable ensures Admin and Login hit the same Tailscale endpoint
-const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Using the .env variable ensures Admin and Login hit the same endpoint
+const RAW_API_BASE = import.meta.env.VITE_API_URL;
 
-// Clean the base URL: Remove any trailing slashes to prevent //auth/login issues
+// Clean the base URL: Remove any trailing slashes
 const API_BASE = RAW_API_BASE.endsWith('/') ? RAW_API_BASE.slice(0, -1) : RAW_API_BASE;
 
 // --- TypeScript Interfaces ---
 export type IssuerStatus = 'pending' | 'approved' | 'rejected';
 
+// UPDATED: Perfectly matches the FastAPI JSON response
 export interface Issuer {
   id: string | number;
-  name: string;
+  college_name: string;
+  college_address: string;
+  college_id: string;
+  document: string;
+  document_id: string;
+  phone_number: string;
   email: string;
   status: IssuerStatus;
   wallet_address: string | null;
-  created_at?: string; 
 }
 
 // --- Helper for Headers ---
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('bn_auth_token');
+// SECURED: No longer reads from localStorage. Requires the token from RAM.
+const getAuthHeaders = (token: string) => {
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -30,15 +35,15 @@ const getAuthHeaders = () => {
 
 /**
  * Fetch all issuers, optionally filtered by status
- * Uses template literals carefully to avoid double slashes
+ * SECURED: Now requires the JWT token as the first argument
  */
-export const getIssuers = async (status?: IssuerStatus): Promise<Issuer[]> => {
+export const getIssuers = async (token: string, status?: IssuerStatus): Promise<Issuer[]> => {
   const endpoint = status ? `/admin/issuers?status=${status}` : '/admin/issuers';
   const url = `${API_BASE}${endpoint}`;
 
   const res = await fetch(url, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(token), // Pass token to headers
   });
 
   if (!res.ok) {
@@ -52,13 +57,14 @@ export const getIssuers = async (status?: IssuerStatus): Promise<Issuer[]> => {
 /**
  * Update an issuer's approval status
  * PATCH /admin/issuers/{issuer_id}/status
+ * SECURED: Now requires the JWT token
  */
-export const updateIssuerStatus = async (issuerId: string | number, status: IssuerStatus) => {
+export const updateIssuerStatus = async (issuerId: string | number, status: IssuerStatus, token: string) => {
   const url = `${API_BASE}/admin/issuers/${issuerId}/status`;
   
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(token), // Pass token to headers
     body: JSON.stringify({ status }),
   });
 
@@ -73,13 +79,14 @@ export const updateIssuerStatus = async (issuerId: string | number, status: Issu
 /**
  * Whitelist an issuer's Polygon wallet address
  * POST /admin/whitelist-wallet
+ * SECURED: Now requires the JWT token
  */
-export const whitelistWallet = async (issuerId: string | number, walletAddress: string) => {
+export const whitelistWallet = async (issuerId: string | number, walletAddress: string, token: string) => {
   const url = `${API_BASE}/admin/whitelist-wallet`;
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(token), // Pass token to headers
     body: JSON.stringify({
       issuer_id: issuerId,
       wallet_address: walletAddress

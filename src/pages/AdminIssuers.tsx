@@ -9,9 +9,13 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import Input from '../components/ui/Input';
+import { useAuth } from '../context/AuthContext'; // 1. Import useAuth
 import { getIssuers, updateIssuerStatus, whitelistWallet, type Issuer } from '../services/adminApi';
 
 const AdminIssuers = () => {
+  // 2. Extract token
+  const { token } = useAuth();
+
   const [issuers, setIssuers] = useState<Issuer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +30,10 @@ const AdminIssuers = () => {
   // Fetch only approved issuers
   useEffect(() => {
     const fetchApproved = async () => {
+      if (!token) return; // Guard clause
       try {
-        const data = await getIssuers('approved');
+        // 3. Pass token to API
+        const data = await getIssuers(token, 'approved');
         setIssuers(data);
       } catch (err: any) {
         setError(err.message || "Failed to load verified issuers.");
@@ -36,12 +42,13 @@ const AdminIssuers = () => {
       }
     };
     fetchApproved();
-  }, []);
+  }, [token]);
 
   const handleSuspend = async (id: string | number) => {
+    if (!token) return;
     try {
-      // Suspend by moving them back to pending
-      await updateIssuerStatus(id, 'pending');
+      // 4. Pass token to API
+      await updateIssuerStatus(id, 'pending', token);
       setIssuers(prev => prev.filter(i => i.id !== id));
     } catch (err) {
       console.error("Failed to suspend issuer", err);
@@ -57,6 +64,8 @@ const AdminIssuers = () => {
 
   const submitWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) return;
+    
     if (!selectedIssuer || !walletInput.startsWith('0x') || walletInput.length !== 42) {
       alert("Please enter a valid Ethereum/Polygon wallet address starting with 0x (42 characters).");
       return;
@@ -64,7 +73,8 @@ const AdminIssuers = () => {
 
     setIsSubmitting(true);
     try {
-      await whitelistWallet(selectedIssuer.id, walletInput);
+      // 5. Pass token to API
+      await whitelistWallet(selectedIssuer.id, walletInput, token);
       
       // Update local state to reflect the new wallet address
       setIssuers(prev => prev.map(i => 
@@ -81,7 +91,7 @@ const AdminIssuers = () => {
   };
 
   const filtered = issuers.filter(o =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
+    (o.college_name && o.college_name.toLowerCase().includes(search.toLowerCase())) ||
     o.email.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -163,9 +173,9 @@ const AdminIssuers = () => {
                     <td className="p-5">
                       <div className="flex items-center gap-2 mb-1">
                         <ShieldCheck size={14} className="text-emerald-500" />
-                        <span className="text-sm font-medium text-white">{org.name}</span>
+                        <span className="text-sm font-medium text-white">{org.college_name}</span>
                       </div>
-                      <span className="text-[11px] font-mono text-[#8A8F98] ml-5">ID: {org.id}</span>
+                      <span className="text-[11px] font-mono text-[#8A8F98] ml-5">ID: {org.college_id}</span>
                     </td>
 
                     {/* Contact */}
@@ -244,7 +254,7 @@ const AdminIssuers = () => {
                   <div>
                     <h2 className="text-lg font-semibold text-white mb-1">Whitelist Wallet</h2>
                     <p className="text-xs text-[#8A8F98]">
-                      Link a Polygon Amoy address for <span className="text-white font-medium">{selectedIssuer?.name}</span>.
+                      Link a Polygon Amoy address for <span className="text-white font-medium">{selectedIssuer?.college_name}</span>.
                     </p>
                   </div>
                   <button 
