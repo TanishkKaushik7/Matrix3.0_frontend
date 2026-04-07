@@ -8,12 +8,18 @@ import {
   Loader2, 
   Fingerprint, 
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  GraduationCap,
+  Building2,
+  FileText // <--- ADD THIS HERE
 } from 'lucide-react';
+import { verifyCertificate, type VerifyResponse } from '../../services/publicApi';
 
 const VerifyBox = () => {
   const [uid, setUid] = useState('');
   const [status, setStatus] = useState<'idle' | 'verifying' | 'valid' | 'invalid'>('idle');
+  const [result, setResult] = useState<VerifyResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Spotlight effect logic
   const boxRef = useRef<HTMLDivElement>(null);
@@ -31,9 +37,30 @@ const VerifyBox = () => {
     if (!uid) return;
     
     setStatus('verifying');
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate BC latency
+    setErrorMessage(null);
+    setResult(null);
     
-    setStatus(uid.toUpperCase().includes('BN') ? 'valid' : 'invalid');
+    try {
+      // Call the real backend API
+      const data = await verifyCertificate(uid);
+      
+      if (data.is_verified) {
+        setResult(data);
+        setStatus('valid');
+      } else {
+        setStatus('invalid');
+        setErrorMessage("Cryptographic hash mismatch. This record is invalid or tampered with.");
+      }
+    } catch (err: any) {
+      setStatus('invalid');
+      setErrorMessage(err.message || "Could not find a matching record on the network.");
+    }
+  };
+
+  const resetSearch = () => {
+    setStatus('idle');
+    setResult(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -73,8 +100,11 @@ const VerifyBox = () => {
               <input
                 type="text"
                 value={uid}
-                onChange={(e) => setUid(e.target.value)}
-                placeholder="Certificate UID or Transaction Hash"
+                onChange={(e) => {
+                  setUid(e.target.value);
+                  if (status !== 'idle' && status !== 'verifying') resetSearch();
+                }}
+                placeholder="Enter Transaction Hash (0x...)"
                 className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#5E6AD2]/50 focus:bg-black/60 transition-all font-mono"
               />
             </div>
@@ -107,33 +137,61 @@ const VerifyBox = () => {
 
           {/* Results Section */}
           <AnimatePresence mode="wait">
-            {status === 'valid' && (
+            {status === 'valid' && result && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-4">
-                  <div className="flex items-center gap-3 text-emerald-400 text-sm font-bold uppercase tracking-widest">
+                <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-5">
+                  <div className="flex items-center gap-3 text-emerald-400 text-sm font-bold uppercase tracking-widest pb-4 border-b border-emerald-500/10">
                     <ShieldCheck size={20} />
-                    <span>Authentication Successful</span>
+                    <span>Authentic Record</span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-[10px] font-mono uppercase tracking-[0.1em]">
-                    <div className="space-y-1">
-                      <p className="text-slate-500">Registry Status</p>
-                      <p className="text-white">Confirmed</p>
+                  {/* Dynamic Data from API */}
+                  <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                    <div className="space-y-1.5 col-span-2">
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                        <GraduationCap size={12} /> Student
+                      </div>
+                      <p className="text-white font-medium text-lg">{result.certificate_payload.student_name}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-slate-500">Node Sync</p>
-                      <p className="text-white">Polygon Amoy</p>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                        <FileText size={12} /> Program
+                      </div>
+                      <p className="text-slate-300 text-sm">{result.certificate_payload.course_program} ({result.certificate_payload.passing_year})</p>
+                    </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                        <Building2 size={12} /> Issuer
+                      </div>
+                      <p className="text-slate-300 text-sm">{result.issuer_name}</p>
                     </div>
                   </div>
 
-                  <button className="w-full py-3 bg-emerald-500 text-black text-xs font-bold rounded-xl transition-all hover:bg-emerald-400 flex items-center justify-center gap-2">
-                    Verify IPFS Payload <ExternalLink size={14} />
-                  </button>
+                  <div className="pt-4 flex gap-3">
+                    <a 
+                      href={result.metadata_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      View IPFS <ExternalLink size={14} />
+                    </a>
+                    <a 
+                      href={`https://amoy.polygonscan.com/tx/${result.token_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-3 bg-white/[0.03] hover:bg-white/[0.08] text-white border border-white/10 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      Explorer <ExternalLink size={14} />
+                    </a>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -145,13 +203,13 @@ const VerifyBox = () => {
                 className="overflow-hidden"
               >
                 <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/20 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 shrink-0 mt-1">
                     <AlertTriangle className="text-red-500" size={20} />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-red-400 text-sm font-bold uppercase tracking-widest pt-2">Invalid Asset</p>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      No matching cryptographic proof found on-chain. This identifier may be forged or revoked.
+                    <p className="text-red-400 text-sm font-bold uppercase tracking-widest pt-1">Invalid Asset</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {errorMessage}
                     </p>
                   </div>
                 </div>

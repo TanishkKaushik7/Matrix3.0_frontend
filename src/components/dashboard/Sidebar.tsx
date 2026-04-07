@@ -8,7 +8,8 @@ import {
   LogOut, 
   ShieldCheck,
   Search,
-  ChevronRight
+  ChevronRight,
+  History // <-- Imported History icon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,9 +22,11 @@ interface SidebarProps {
 const Sidebar = ({ activeTab, setActiveTab, orgName }: SidebarProps) => {
   const { logout } = useAuth();
 
+  // Added the History tab, linking it to the 'registry' ID to trigger your RegistryTable component
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'mint', label: 'Issue Certificate', icon: PlusCircle },
+    { id: 'registry', label: 'History', icon: History }, 
   ];
 
   return (
