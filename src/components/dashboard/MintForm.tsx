@@ -5,20 +5,15 @@ import {
   Hash, Zap, FileText, CheckCircle2, AlertCircle, X, User, 
   Calendar, GraduationCap, Fingerprint, Loader2 
 } from 'lucide-react';
-import { createCertificate } from '../../services/issuerApi';
+import { createCertificate, linkCertificateToken } from '../../services/issuerApi'; // <-- Imported new API
 import { useAuth } from '../../context/AuthContext';
 
-// --- THE FIX IS HERE ---
-// This must be exactly 42 characters starting with 0x. 
-// Replace this dummy address with your REAL deployed contract address later!
-const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138"; 
+const CONTRACT_ADDRESS = "0xcAd81DD9a6C23192B696A0A7D0FEFbD4F212306C"; 
 
-// UPDATED ABI: No student address required anymore.
 const CONTRACT_ABI = [
   "function mintCertificate(string cid, bytes32 hash) public"
 ];
 
-// 80002 is Polygon Amoy Testnet. Use 137 for Polygon Mainnet.
 const TARGET_CHAIN_ID = 80002n; 
 
 interface MintFormProps {
@@ -28,21 +23,18 @@ interface MintFormProps {
 const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
   const { token, user } = useAuth();
 
-  // --- Form State Aligned with FastAPI Schema ---
   const [rollNumber, setRollNumber] = useState('');
   const [studentName, setStudentName] = useState('');
   const [courseProgram, setCourseProgram] = useState('');
   const [passingYear, setPassingYear] = useState('');
   const [cgpa, setCgpa] = useState('');
 
-  // --- Blockchain Payload State ---
-  const [blockchainData, setBlockchainData] = useState<{cid: string, hash: string} | null>(null);
+  // 1. UPDATED STATE: Now stores the certificate_id from the backend
+  const [blockchainData, setBlockchainData] = useState<{ id: number, cid: string, hash: string } | null>(null);
 
-  // --- UX State ---
-  const [step, setStep] = useState<'idle' | 'hashing' | 'ready_to_mint' | 'minting' | 'success'>('idle');
+  const [step, setStep] = useState<'idle' | 'hashing' | 'ready_to_mint' | 'minting' | 'linking' | 'success'>('idle');
   const [error, setError] = useState<string | null>(null);
   
-  // Spotlight logic for UI
   const divRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -53,7 +45,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  // --- STEP 1: Backend Payload Generation ---
   const handleGeneratePayload = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -74,10 +65,15 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         cgpa: parseFloat(cgpa)              
       };
 
-      // Calls backend -> generates PDF -> uploads to IPFS -> returns CID & Hash
       const result = await createCertificate(payload, token);
       
-      setBlockchainData({ cid: result.cid, hash: result.hash });
+      // 2. SAVE THE ID: We need this for the link-token step!
+      setBlockchainData({ 
+        id: result.certificate_id, 
+        cid: result.cid, 
+        hash: result.hash 
+      });
+      
       setStep('ready_to_mint');
 
     } catch (err: any) {
@@ -86,27 +82,22 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     }
   };
 
-  // --- STEP 2 to 9: MetaMask Smart Contract Call ---
   const handleBlockchainMint = async () => {
     setError(null);
     setStep('minting');
 
     try {
-      if (!window.ethereum) {
-        throw new Error("MetaMask is not installed!");
-      }
+      if (!window.ethereum) throw new Error("MetaMask is not installed!");
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const connectedWallet = await signer.getAddress();
 
-      // Strict Wallet Match Check
       if (user?.wallet_address && connectedWallet.toLowerCase() !== user.wallet_address.toLowerCase()) {
         throw new Error(`Wrong wallet connected. Please switch to your registered issuer wallet: ${user.wallet_address.slice(0,6)}...`);
       }
 
-      // Network Check
       const network = await provider.getNetwork();
       if (network.chainId !== TARGET_CHAIN_ID) {
         throw new Error("Please switch your MetaMask to the Polygon Amoy Network.");
@@ -114,19 +105,25 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
 
       if (!blockchainData) throw new Error("Missing IPFS data.");
 
-      // Connect Smart Contract
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      // Call mintCertificate (Triggers MetaMask Popup - NO STUDENT WALLET NEEDED)
       const tx = await contract.mintCertificate(
-        blockchainData.cid, // IPFS CID from backend
-        blockchainData.hash // Data Hash from backend
+        blockchainData.cid, 
+        blockchainData.hash 
       );
 
-      // Wait for Blockchain Confirmation
       const receipt = await tx.wait();
       
-      console.log("Transaction Mined! Receipt:", receipt);
+      // 3. NEW STEP: Blockchain was successful, now update the database!
+      setStep('linking');
+      
+     await linkCertificateToken({
+        certificate_id: blockchainData.id,
+        // ✅ FIX: Use tx.hash or provide a fallback string
+        token_id: tx.hash 
+      }, token);
+      
+      console.log("Certificate Linked Successfully!");
       setStep('success');
 
     } catch (err: any) {
@@ -135,7 +132,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         setError("Transaction was rejected in MetaMask.");
         setStep('ready_to_mint'); 
       } else {
-        setError(err.message || "Smart contract execution failed.");
+        setError(err.message || "Smart contract or database update failed.");
         setStep('ready_to_mint');
       }
     }
@@ -268,7 +265,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         {/* --- DYNAMIC UX OVERLAYS --- */}
         <AnimatePresence>
           
-          {/* STATE: 1. Hashing / Uploading to IPFS */}
           {step === 'hashing' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-center">
               <Loader2 size={48} className="text-[#5E6AD2] animate-spin mb-6" />
@@ -277,7 +273,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
             </motion.div>
           )}
 
-          {/* STATE: 2. Ready to Mint (Wait for MetaMask Trigger) */}
           {step === 'ready_to_mint' && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center p-10 text-center">
               <div className="w-20 h-20 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(94,106,210,0.1)]">
@@ -288,7 +283,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
                 Payload generated successfully. Please sign the transaction using your authorized issuer wallet to record it on Polygon.
               </p>
               
-              {/* Overlay Error Display */}
               {error && (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg max-w-sm text-balance">
                   {error}
@@ -304,7 +298,6 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
             </motion.div>
           )}
 
-          {/* STATE: 3. Minting (Waiting for Blockchain Confirmation) */}
           {step === 'minting' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-[70] flex flex-col items-center justify-center p-6 text-center">
               <div className="relative w-24 h-24 mb-8">
@@ -316,7 +309,15 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
             </motion.div>
           )}
 
-          {/* STATE: 4. Success! */}
+          {/* NEW STATE: Syncing to database */}
+          {step === 'linking' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#050506]/95 backdrop-blur-md z-[70] flex flex-col items-center justify-center p-6 text-center">
+              <Loader2 size={48} className="text-emerald-500 animate-spin mb-6" />
+              <h3 className="text-2xl font-semibold text-white mb-2">Transaction Successful!</h3>
+              <p className="text-sm text-emerald-500/80 animate-pulse">Syncing blockchain record with the database...</p>
+            </motion.div>
+          )}
+
           {step === 'success' && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="absolute inset-0 bg-[#050506] z-[80] flex flex-col items-center justify-center p-10 text-center">
               <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.15)]">
