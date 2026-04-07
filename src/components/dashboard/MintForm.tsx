@@ -5,7 +5,7 @@ import {
   Hash, Zap, FileText, CheckCircle2, AlertCircle, X, User, 
   Calendar, GraduationCap, Fingerprint, Loader2 
 } from 'lucide-react';
-import { createCertificate, linkCertificateToken } from '../../services/issuerApi'; // <-- Imported new API
+import { createCertificate, linkCertificateToken } from '../../services/issuerApi';
 import { useAuth } from '../../context/AuthContext';
 
 const CONTRACT_ADDRESS = "0xcAd81DD9a6C23192B696A0A7D0FEFbD4F212306C"; 
@@ -86,6 +86,13 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     setError(null);
     setStep('minting');
 
+    // Add a strict check here so TypeScript knows token exists early on
+    if (!token) {
+      setError("Session expired. Please log in again.");
+      setStep('idle');
+      return;
+    }
+
     try {
       if (!window.ethereum) throw new Error("MetaMask is not installed!");
 
@@ -117,11 +124,10 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
       // 3. NEW STEP: Blockchain was successful, now update the database!
       setStep('linking');
       
-     await linkCertificateToken({
+      await linkCertificateToken({
         certificate_id: blockchainData.id,
-        // ✅ FIX: Use tx.hash or provide a fallback string
-        token_id: tx.hash 
-      }, token);
+        token_id: tx.hash as string 
+      }, token as string); // ✅ FIX: Added "as string" to override TypeScript's null check
       
       console.log("Certificate Linked Successfully!");
       setStep('success');
