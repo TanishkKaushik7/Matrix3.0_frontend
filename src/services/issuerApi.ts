@@ -1,7 +1,6 @@
 const RAW_API_BASE = import.meta.env.VITE_API_URL;
 const API_BASE = RAW_API_BASE.endsWith('/') ? RAW_API_BASE.slice(0, -1) : RAW_API_BASE;
 
-
 // --- 1. REFACTORED HEADERS ---
 // Now accepts the token as a required parameter
 const getAuthHeaders = (token: string) => {
@@ -19,10 +18,13 @@ export interface CertificateData {
   cgpa: number;
 }
 
+// UPDATED: Matches the new FastAPI response shape
 export interface CertificateResponse {
+  certificate_id: number;
   cid: string;
   hash: string;
   metadata_url: string;
+  token_id: string | null;
 }
 
 /**
@@ -102,6 +104,64 @@ export const registerIssuer = async (registrationData: any) => {
       throw new Error(err.detail[0].msg);
     }
     throw new Error(err.detail || "Registration failed. Please try again.");
+  }
+
+  return res.json();
+};
+
+/**
+ * Link a blockchain transaction hash (token_id) to a certificate in the database
+ * POST /certificate/link-token
+ */
+export const linkCertificateToken = async (data: { certificate_id: number, token_id: string }, token: string) => {
+  const res = await fetch(`${API_BASE}/certificate/link-token`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to link token to certificate in database.");
+  }
+
+  return res.json();
+};
+
+// ==========================================
+// NEW HISTORY API ENDPOINTS & INTERFACES
+// ==========================================
+
+export interface CertificateRecord {
+  certificate_id: number;
+  cid: string;
+  hash: string;
+  token_id: string | null;
+  created_at: string;
+}
+
+export interface CertificateHistoryResponse {
+  issuer_id: number | string;
+  total_generated: number;
+  total_minted: number;
+  limit: number;
+  offset: number;
+  certificates: CertificateRecord[];
+}
+
+/**
+ * Fetch the issuance history for the logged-in institution
+ * GET /certificate/history
+ */
+export const getCertificateHistory = async (token: string, limit = 50, offset = 0): Promise<CertificateHistoryResponse> => {
+  const res = await fetch(`${API_BASE}/certificate/history?limit=${limit}&offset=${offset}`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch certificate history");
   }
 
   return res.json();

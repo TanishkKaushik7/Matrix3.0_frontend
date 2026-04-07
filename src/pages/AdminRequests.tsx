@@ -5,14 +5,21 @@ import {
   CheckCircle2, 
   XCircle,
   Clock,
-  Inbox
+  Inbox,
+  Eye,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  FileText,
+  ExternalLink,
+  X
 } from 'lucide-react';
 import Input from '../components/ui/Input';
-import { useAuth } from '../context/AuthContext'; // 1. Import useAuth
+import { useAuth } from '../context/AuthContext';
 import { getIssuers, updateIssuerStatus, type Issuer } from '../services/adminApi';
 
 const AdminRequests = () => {
-  // 2. Extract token from context
   const { token } = useAuth();
 
   const [requests, setRequests] = useState<Issuer[]>([]);
@@ -20,13 +27,15 @@ const AdminRequests = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [processingId, setProcessingId] = useState<string | number | null>(null);
+  
+  // NEW: State to control the details modal
+  const [selectedIssuer, setSelectedIssuer] = useState<Issuer | null>(null);
 
   // Fetch only pending requests
   useEffect(() => {
     const fetchPending = async () => {
-      if (!token) return; // Guard clause
+      if (!token) return;
       try {
-        // 3. Pass token to API
         const data = await getIssuers(token, 'pending');
         setRequests(data);
       } catch (err: any) {
@@ -36,16 +45,19 @@ const AdminRequests = () => {
       }
     };
     fetchPending();
-  }, [token]); // Add token to dependency array
+  }, [token]);
 
   const handleAction = async (id: string | number, action: 'approved' | 'rejected') => {
     if (!token) return;
     setProcessingId(id);
     try {
-      // 4. Pass token to API
       await updateIssuerStatus(id, action, token);
-      // Remove the processed request from the UI
       setRequests(prev => prev.filter(req => req.id !== id));
+      
+      // Close modal if the action was taken from inside the modal
+      if (selectedIssuer?.id === id) {
+        setSelectedIssuer(null);
+      }
     } catch (err: any) {
       alert(err.message || `Failed to mark as ${action}.`);
     } finally {
@@ -53,7 +65,6 @@ const AdminRequests = () => {
     }
   };
 
-  // 5. Update filtering to use college_name
   const filtered = requests.filter(o =>
     (o.college_name && o.college_name.toLowerCase().includes(search.toLowerCase())) ||
     o.email.toLowerCase().includes(search.toLowerCase())
@@ -154,6 +165,14 @@ const AdminRequests = () => {
                     {/* Actions */}
                     <td className="p-5">
                       <div className="flex justify-end gap-2">
+                        {/* Details Button */}
+                        <button
+                          onClick={() => setSelectedIssuer(org)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-all"
+                        >
+                          <Eye size={14} />
+                          Details
+                        </button>
                         <button
                           onClick={() => handleAction(org.id, 'approved')}
                           disabled={processingId === org.id}
@@ -179,6 +198,158 @@ const AdminRequests = () => {
           </table>
         )}
       </div>
+
+      {/* --- Issuer Details Modal --- */}
+      <AnimatePresence>
+        {selectedIssuer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedIssuer(null)}
+              className="absolute inset-0 bg-[#050506]/80 backdrop-blur-sm"
+            />
+            
+            {/* Modal Content */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-lg bg-[#0A0A0C] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#5E6AD2]/50 to-transparent" />
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/[0.04]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#5E6AD2]/10 rounded-lg border border-[#5E6AD2]/20">
+                    <Building2 size={18} className="text-[#5E6AD2]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white leading-tight">Institution Details</h2>
+                    <p className="text-[11px] font-mono text-[#8A8F98]">ID: {selectedIssuer.id}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedIssuer(null)}
+                  className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/5 rounded-md transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Body (Scrollable) */}
+              <div className="p-6 overflow-y-auto space-y-6">
+                
+                {/* Basic Info */}
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-2">Profile Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500">Institution Name</p>
+                      <p className="text-sm font-medium text-white">{selectedIssuer.college_name}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500">Registration ID</p>
+                      <p className="text-sm font-mono text-white">{selectedIssuer.college_id}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Info */}
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-2">Contact Details</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1 flex items-start gap-2">
+                      <Mail size={14} className="text-[#5E6AD2] mt-0.5" />
+                      <div>
+                        <p className="text-[10px] uppercase text-slate-500 mb-0.5">Email Address</p>
+                        <p className="text-sm text-white">{selectedIssuer.email}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1 flex items-start gap-2">
+                      <Phone size={14} className="text-[#5E6AD2] mt-0.5" />
+                      <div>
+                        <p className="text-[10px] uppercase text-slate-500 mb-0.5">Phone Number</p>
+                        <p className="text-sm text-white">{selectedIssuer.phone_number || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1 flex items-start gap-2 col-span-1 md:col-span-2">
+                      <MapPin size={14} className="text-[#5E6AD2] mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase text-slate-500 mb-0.5">Physical Address</p>
+                        <p className="text-sm text-white">{selectedIssuer.college_address || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documents */}
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 border-b border-white/[0.04] pb-2">Verification Documents</h3>
+                  
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText size={18} className="text-slate-400" />
+                      <div>
+                        <p className="text-sm text-white font-medium">Affiliation Document</p>
+                        <p className="text-[11px] font-mono text-slate-500">Doc ID: {selectedIssuer.document_id || 'N/A'}</p>
+                      </div>
+                    </div>
+                    {selectedIssuer.document ? (
+                      <a 
+                        href={selectedIssuer.document} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5E6AD2]/10 text-[#5E6AD2] text-xs font-medium rounded-lg hover:bg-[#5E6AD2]/20 transition-colors"
+                      >
+                        View File <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-500">No file attached</span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer / Actions */}
+              <div className="p-6 border-t border-white/[0.04] bg-black/20 flex items-center justify-between gap-4">
+                <span className="text-xs text-amber-500 font-medium px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  Status: Pending Review
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleAction(selectedIssuer.id, 'rejected')}
+                    disabled={processingId === selectedIssuer.id}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
+                  >
+                    <XCircle size={16} /> Reject
+                  </button>
+                  <button
+                    onClick={() => handleAction(selectedIssuer.id, 'approved')}
+                    disabled={processingId === selectedIssuer.id}
+                    className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-400 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all disabled:opacity-50 text-black"
+                  >
+                    {processingId === selectedIssuer.id ? (
+                      <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    Approve Request
+                  </button>
+                </div>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };
