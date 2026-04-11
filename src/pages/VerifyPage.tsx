@@ -54,7 +54,7 @@ const VerifyPage = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-[#5E6AD2]/30 bg-[#5E6AD2]/10 text-[#7C87E8] text-[10px] font-mono tracking-[0.2em] uppercase"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-[#5E6AD2]/30 bg-[#5E6AD2]/10 text-[#d2ad5e] text-[10px] font-mono tracking-[0.2em] uppercase"
             >
               <ShieldCheck size={12} className="animate-pulse" /> 
               On-Chain Verification Node
@@ -62,7 +62,7 @@ const VerifyPage = () => {
             
             <div className="space-y-2">
               <h1 className="text-5xl font-bold tracking-tight text-white italic">
-                Trustless<span className="text-[#5E6AD2]">.</span>
+                Trustless<span className="text-[#d2ad5e]">.</span>
               </h1>
               <p className="text-sm text-[#8A8F98] leading-relaxed max-w-[320px] mx-auto font-medium">
                 Validate cryptographic proofs and institutional signatures directly on Polygon Amoy.
@@ -119,7 +119,7 @@ const VerifyPage = () => {
  * Reusable Mini Status Badge
  */
 const StatusBadge = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
-  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[9px] font-mono text-[#5E6AD2] uppercase tracking-widest hover:bg-white/[0.05] hover:border-white/10 transition-colors">
+  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[9px] font-mono text-[#d2ad5e] uppercase tracking-widest hover:bg-white/[0.05] hover:border-white/10 transition-colors">
     {icon}
     <span className="text-[#8A8F98]">{label}</span>
   </div>

@@ -220,7 +220,7 @@ const VerifyBox = () => {
           {/* Technical Footer */}
           <div className="pt-6 border-t border-white/[0.06] flex items-center justify-between">
             <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em]">
-              <Fingerprint size={12} className="text-[#5E6AD2]" /> 
+              <Fingerprint size={12} className="text-[#d2ad5e]" /> 
               Local SHA-256 Run
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.03] border border-white/[0.05]">

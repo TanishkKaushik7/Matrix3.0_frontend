@@ -77,7 +77,7 @@ export const useAuthFlow = () => {
 
     } catch (err: any) {
       if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
-        setError("Network error: BhoomiNet Node is unreachable.");
+        setError("Network error: Provectus Node is unreachable.");
       } else {
         setError(err.message);
       }

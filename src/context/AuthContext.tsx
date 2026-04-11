@@ -20,45 +20,93 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AUTH_SESSION_KEY = 'auth_session_v1';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Since we are NOT using localStorage, the initial state is always null.
-  // We set isLoading to false immediately on mount.
+  const persistSession = (authToken: string, userData: User) => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      sessionStorage.setItem(
+        AUTH_SESSION_KEY,
+        JSON.stringify({ token: authToken, user: userData })
+      );
+    } catch (storageError) {
+      console.warn('Unable to persist auth session:', storageError);
+    }
+  };
+
+  const clearSession = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (storageError) {
+      console.warn('Unable to clear auth session:', storageError);
+    }
+  };
+
+  // Restore session on refresh so users stay logged in while tab is open.
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const raw = sessionStorage.getItem(AUTH_SESSION_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { token?: string; user?: User };
+        if (parsed?.token && parsed?.user) {
+          setToken(parsed.token);
+          setUser(parsed.user);
+        }
+      }
+    } catch (storageError) {
+      console.warn('Unable to restore auth session:', storageError);
+      clearSession();
+    }
+
     setIsLoading(false);
   }, []);
 
   /**
-   * Pure In-Memory Login: Data lives only as long as the tab is open.
+   * Login and persist auth state so refresh does not log the user out.
    */
   const login = (_email: string, authToken: string, userData: User) => {
     setToken(authToken);
     setUser(userData);
+    persistSession(authToken, userData);
   };
 
   /**
-   * Pure In-Memory Logout: Wipes RAM and redirects.
+   * Logout wipes RAM + session storage, then redirects.
    */
   const logout = () => {
     setToken(null);
     setUser(null);
+    clearSession();
     window.location.href = '/';
   };
 
   /**
-   * Updates user identity in RAM when MetaMask connects.
+   * Updates user identity and keeps session storage in sync.
    */
   const updateWalletStatus = (address: string) => {
     if (user) {
-      setUser({
+      const updatedUser = {
         ...user,
         wallet_connected: true,
         wallet_address: address
-      });
+      };
+
+      setUser(updatedUser);
+      if (token) {
+        persistSession(token, updatedUser);
+      }
     }
   };
 

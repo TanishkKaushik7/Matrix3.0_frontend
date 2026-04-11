@@ -93,21 +93,21 @@ const Home = () => {
               <motion.span 
                 initial={{ backgroundPosition: '0% 50%' }} animate={{ backgroundPosition: '100% 50%' }}
                 transition={{ duration: 4, repeat: Infinity, repeatType: "reverse" }}
-                className="bg-gradient-to-r from-[#A5B4FC] via-[#818CF8] to-[#4F46E5] text-transparent bg-clip-text bg-[length:200%_auto] inline-block"
+                className="bg-gradient-to-r from-[#fce0a5] via-[#f8d681] to-[#e5a846] text-transparent bg-clip-text bg-[length:200%_auto] inline-block"
               >
                 {renderTypingText("Credentials")}
               </motion.span>
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-gray-400 text-base md:text-lg leading-relaxed max-w-[90%]">
-              Matrix 3.0 uses cryptographic verification to prevent academic fraud. Issue, store, and verify digital assets on the blockchain with absolute certainty.
+              Provectus uses cryptographic verification to prevent academic fraud. Issue, store, and verify digital assets on the blockchain with absolute certainty.
             </motion.p>
           </div>
 
           {/* Action Buttons */}
           <motion.div variants={itemVariants} className="flex flex-col gap-3 pt-2 w-full max-w-[460px]">
             <div className="flex gap-3">
-              <button onClick={() => navigate('/login')} className="flex-1 h-12 bg-[#5E6AD2] hover:bg-[#6872D9] text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(94,106,210,0.3)] active:scale-[0.97]">
+              <button onClick={() => navigate('/login')} className="flex-1 h-12 bg-[#f3b553] hover:bg-[#f18912] text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(94,106,210,0.3)] active:scale-[0.97]">
                 <Lock size={16} strokeWidth={2.5} /> Issuer Login
               </button>
 
@@ -127,10 +127,7 @@ const Home = () => {
 
           <motion.div variants={itemVariants} className="flex items-center gap-8 pt-6 border-t border-white/[0.05] w-full max-w-[460px]">
             <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 uppercase tracking-[0.2em]">
-              <ShieldCheck size={14} className="text-[#5E6AD2]" /> ERC-721 Secure
-            </div>
-            <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 uppercase tracking-[0.2em]">
-              <Lock size={14} className="text-[#5E6AD2]" /> IPFS Protocol
+              <Lock size={14} className="text-[#ee9242]" /> IPFS Protocol
             </div>
           </motion.div>
         </motion.div>

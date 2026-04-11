@@ -8,13 +8,27 @@ import {
 import { createCertificate, linkCertificateToken } from '../../services/issuerApi';
 import { useAuth } from '../../context/AuthContext';
 
-const CONTRACT_ADDRESS = "0xcAd81DD9a6C23192B696A0A7D0FEFbD4F212306C"; 
+const CONTRACT_ADDRESS = import.meta.env.VITE_CERTIFICATE_CONTRACT_ADDRESS || "0x2D65DF28ab23C04aaE131B8472E57B65863741c8";
 
 const CONTRACT_ABI = [
   "function mintCertificate(string cid, bytes32 hash) public"
 ];
 
-const TARGET_CHAIN_ID = 80002n; 
+const TARGET_CHAIN_ID = 1337n; 
+const TARGET_CHAIN_ID_HEX = '0x539';
+
+const getTxExplorerUrl = (chainId: bigint, txHash: string): string | null => {
+  if (chainId === 80002n) return `https://amoy.polygonscan.com/tx/${txHash}`;
+  if (chainId === 137n) return `https://polygonscan.com/tx/${txHash}`;
+  return null;
+};
+
+const getChainLabel = (chainId: bigint): string => {
+  if (chainId === 1337n) return 'Ganache Local (1337)';
+  if (chainId === 80002n) return 'Polygon Amoy';
+  if (chainId === 137n) return 'Polygon Mainnet';
+  return `Chain ${chainId.toString()}`;
+};
 
 interface MintFormProps {
   onCancel?: () => void;
@@ -31,6 +45,9 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
 
   // 1. UPDATED STATE: Now stores the certificate_id from the backend
   const [blockchainData, setBlockchainData] = useState<{ id: number, cid: string, hash: string } | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [txExplorerUrl, setTxExplorerUrl] = useState<string | null>(null);
+  const [txChainLabel, setTxChainLabel] = useState<string>('');
 
   const [step, setStep] = useState<'idle' | 'hashing' | 'ready_to_mint' | 'minting' | 'linking' | 'success'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -85,8 +102,10 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
   const handleBlockchainMint = async () => {
     setError(null);
     setStep('minting');
+    setTxHash(null);
+    setTxExplorerUrl(null);
+    setTxChainLabel('');
 
-    // Add a strict check here so TypeScript knows token exists early on
     if (!token) {
       setError("Session expired. Please log in again.");
       setStep('idle');
@@ -96,9 +115,10 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     try {
       if (!window.ethereum) throw new Error("MetaMask is not installed!");
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      // Use let instead of const so we can refresh them after a network switch
+      let provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
+      let signer = await provider.getSigner();
       const connectedWallet = await signer.getAddress();
 
       if (user?.wallet_address && connectedWallet.toLowerCase() !== user.wallet_address.toLowerCase()) {
@@ -106,11 +126,40 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
       }
 
       const network = await provider.getNetwork();
+      
+      // --- AUTO SWITCH LOGIC ---
       if (network.chainId !== TARGET_CHAIN_ID) {
-        throw new Error("Please switch your MetaMask to the Polygon Amoy Network.");
+        try {
+          // Attempt to automatically switch the user's MetaMask to Ganache (Chain ID 1337 is 0x539 in hex)
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: TARGET_CHAIN_ID_HEX }], 
+          });
+          
+          // Re-initialize provider and signer after successful switch
+          provider = new ethers.BrowserProvider(window.ethereum);
+          signer = await provider.getSigner();
+        } catch (switchError: any) {
+          // If they reject the switch or the network isn't added
+          throw new Error("Please switch your MetaMask to the Ganache Local Network (Chain ID 1337).");
+        }
       }
 
       if (!blockchainData) throw new Error("Missing IPFS data.");
+
+      if (!ethers.isAddress(CONTRACT_ADDRESS)) {
+        throw new Error(`Invalid contract address in frontend config: ${CONTRACT_ADDRESS}`);
+      }
+
+      const deployedCode = await provider.getCode(CONTRACT_ADDRESS);
+      if (deployedCode === '0x') {
+        throw new Error(
+          `No smart contract is deployed at ${CONTRACT_ADDRESS} on chain ${TARGET_CHAIN_ID}. Update VITE_CERTIFICATE_CONTRACT_ADDRESS or redeploy the contract to the selected network.`
+        );
+      }
+
+      const activeNetwork = await provider.getNetwork();
+      setTxChainLabel(getChainLabel(activeNetwork.chainId));
 
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
@@ -119,7 +168,10 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
         blockchainData.hash 
       );
 
-      const receipt = await tx.wait();
+      setTxHash(tx.hash);
+      setTxExplorerUrl(getTxExplorerUrl(activeNetwork.chainId, tx.hash));
+
+      await tx.wait();
       
       // 3. NEW STEP: Blockchain was successful, now update the database!
       setStep('linking');
@@ -127,7 +179,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
       await linkCertificateToken({
         certificate_id: blockchainData.id,
         token_id: tx.hash as string 
-      }, token as string); // ✅ FIX: Added "as string" to override TypeScript's null check
+      }, token as string); 
       
       console.log("Certificate Linked Successfully!");
       setStep('success');
@@ -152,6 +204,18 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
     setPassingYear('');
     setCgpa('');
     setBlockchainData(null);
+    setTxHash(null);
+    setTxExplorerUrl(null);
+    setTxChainLabel('');
+  };
+
+  const handleCopyTxHash = async () => {
+    if (!txHash) return;
+    try {
+      await navigator.clipboard.writeText(txHash);
+    } catch {
+      setError('Unable to copy transaction hash. Please copy it manually from logs.');
+    }
   };
 
   return (
@@ -160,7 +224,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
       <div className="flex items-end justify-between border-b border-white/[0.06] pb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <span className="px-2 py-0.5 rounded bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[10px] font-mono text-[#5E6AD2] uppercase tracking-widest">
+            <span className="px-2 py-0.5 rounded bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[10px] font-mono text-[#d2ad5e] uppercase tracking-widest">
               Action Required
             </span>
           </div>
@@ -214,14 +278,14 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <Hash size={12} className="text-[#5E6AD2]" /> Roll Number
+                  <Hash size={12} className="text-[#d2ad5e]" /> Roll Number
                 </label>
                 <input required value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} type="text" placeholder="e.g. UNI123" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
               </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <User size={12} className="text-[#5E6AD2]" /> Student Name
+                  <User size={12} className="text-[#d2ad5e]" /> Student Name
                 </label>
                 <input required value={studentName} onChange={(e) => setStudentName(e.target.value)} type="text" placeholder="Akshit Singh" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600" />
               </div>
@@ -229,7 +293,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
 
             <div className="space-y-2">
               <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                <FileText size={12} className="text-[#5E6AD2]" /> Course Program
+                <FileText size={12} className="text-[#d2ad5e]" /> Course Program
               </label>
               <input required value={courseProgram} onChange={(e) => setCourseProgram(e.target.value)} type="text" placeholder="Bachelor of Technology in Computer Science" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600" />
             </div>
@@ -237,14 +301,14 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <Calendar size={12} className="text-[#5E6AD2]" /> Passing Year
+                  <Calendar size={12} className="text-[#d2ad5e]" /> Passing Year
                 </label>
                 <input required value={passingYear} onChange={(e) => setPassingYear(e.target.value)} type="number" placeholder="2026" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
               </div>
               
               <div className="space-y-2">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1 flex items-center gap-2">
-                  <GraduationCap size={12} className="text-[#5E6AD2]" /> Cumulative GPA
+                  <GraduationCap size={12} className="text-[#d2ad5e]" /> Cumulative GPA
                 </label>
                 <input required value={cgpa} onChange={(e) => setCgpa(e.target.value)} type="number" step="0.01" max="10" placeholder="8.74" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:ring-2 focus:ring-[#5E6AD2]/30 focus:border-[#5E6AD2] outline-none transition-all placeholder:text-slate-600 font-mono" />
               </div>
@@ -261,7 +325,7 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
 
             <button
               type="submit"
-              className="w-full md:w-auto px-8 py-3.5 bg-[#5E6AD2] hover:bg-[#6872D9] text-white text-sm font-semibold rounded-xl shadow-[0_0_30px_rgba(94,106,210,0.3)] transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full md:w-auto px-8 py-3.5 bg-[#d2ad5e] hover:bg-[#efae21] text-white text-sm font-semibold rounded-xl shadow-[0_0_30px_rgba(94,106,210,0.3)] transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               Generate Payload <FileText size={16} />
             </button>
@@ -331,13 +395,24 @@ const MintForm: React.FC<MintFormProps> = ({ onCancel }) => {
               </div>
               <h3 className="text-3xl font-bold text-white mb-3">Certificate Issued ✅</h3>
               <p className="text-slate-400 text-sm mb-10 max-w-md leading-relaxed">
-                The transaction has been successfully mined on Polygon. The certificate hash for student <span className="font-mono text-white">{rollNumber}</span> is now an immutable public record.
+                The transaction has been successfully mined on <span className="text-white">{txChainLabel || 'the selected network'}</span>. The certificate hash for student <span className="font-mono text-white">{rollNumber}</span> is now an immutable public record.
               </p>
+              {txHash && (
+                <p className="text-xs text-slate-500 mb-6 font-mono break-all max-w-xl">
+                  Tx Hash: {txHash}
+                </p>
+              )}
               <div className="flex gap-4">
                 <button onClick={resetForm} className="px-8 py-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-sm font-medium text-white transition-all">Issue Another</button>
-                <button className="px-8 py-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#5E6AD2] rounded-xl text-sm font-medium hover:bg-[#5E6AD2]/20 transition-all flex items-center gap-2">
-                  <Fingerprint size={14} /> View on PolygonScan
-                </button>
+                {txExplorerUrl ? (
+                  <a href={txExplorerUrl} target="_blank" rel="noreferrer" className="px-8 py-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#5E6AD2] rounded-xl text-sm font-medium hover:bg-[#5E6AD2]/20 transition-all flex items-center gap-2">
+                    <Fingerprint size={14} /> View on Explorer
+                  </a>
+                ) : (
+                  <button onClick={handleCopyTxHash} type="button" className="px-8 py-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#5E6AD2] rounded-xl text-sm font-medium hover:bg-[#5E6AD2]/20 transition-all flex items-center gap-2">
+                    <Fingerprint size={14} /> Copy Tx Hash
+                  </button>
+                )}
               </div>
             </motion.div>
           )}

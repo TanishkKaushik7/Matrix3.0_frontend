@@ -1,10 +1,7 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
   PlusCircle, 
-  FileText, 
-  Settings, 
   LogOut, 
   ShieldCheck,
   Search,
@@ -35,15 +32,15 @@ const Sidebar = ({ activeTab, setActiveTab, orgName }: SidebarProps) => {
       {/* Branding Section */}
       <div className="p-8">
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-9 h-9 bg-[#5E6AD2] rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(94,106,210,0.4)]">
+          <div className="w-9 h-9 bg-[#f9ad16] rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(247,188,69,0.4)]">
             <ShieldCheck size={22} className="text-white" />
           </div>
-          <span className="font-bold tracking-tight text-white text-xl">BhoomiNet</span>
+          <span className="font-bold tracking-tight text-white text-xl">Provectus</span>
         </div>
 
         {/* Search Bar - Improved Visibility */}
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#5E6AD2] transition-colors" size={14} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#d2ad5e] transition-colors" size={14} />
           <input 
             type="text" 
             placeholder="Search Registry..."
@@ -70,7 +67,7 @@ const Sidebar = ({ activeTab, setActiveTab, orgName }: SidebarProps) => {
             >
               <Icon 
                 size={18} 
-                className={`transition-colors duration-300 ${isActive ? 'text-[#5E6AD2]' : 'text-slate-500 group-hover:text-slate-300'}`} 
+                className={`transition-colors duration-300 ${isActive ? 'text-[#d2b35e]' : 'text-slate-500 group-hover:text-slate-300'}`} 
               />
               <span className="flex-1 text-left">{item.label}</span>
               
@@ -81,7 +78,7 @@ const Sidebar = ({ activeTab, setActiveTab, orgName }: SidebarProps) => {
                   {/* The Indicator Line */}
                   <motion.div 
                     layoutId="active-sidebar-line"
-                    className="absolute right-0 w-1 h-5 bg-[#5E6AD2] rounded-l-full shadow-[0_0_10px_#5E6AD2]"
+                    className="absolute right-0 w-1 h-5 bg-[#d2b55e] rounded-l-full shadow-[0_0_10px_#5E6AD2]"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 </>

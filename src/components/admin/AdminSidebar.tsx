@@ -29,7 +29,7 @@ const AdminSidebar = () => {
             <Hexagon size={16} className="text-[#5E6AD2] fill-[#5E6AD2]/20" />
           </div>
           <span className="text-sm font-semibold text-white tracking-wide">
-            BhoomiNet <span className="text-[#5E6AD2]">Admin</span>
+            Provectus <span className="text-[#5E6AD2]">Admin</span>
           </span>
         </div>
       </div>
