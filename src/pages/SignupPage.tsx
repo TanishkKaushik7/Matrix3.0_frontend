@@ -47,7 +47,7 @@ const SignupPage = () => {
               {/* 3. Redesigned Header Section */}
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-[#5E6AD2]/20 bg-[#5E6AD2]/10 text-[#5E6AD2] text-[10px] font-mono tracking-widest uppercase">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-[#5E6AD2]/20 bg-[#5E6AD2]/10 text-[#d2a25e] text-[10px] font-mono tracking-widest uppercase">
                     <Landmark size={12} /> Institutional Onboarding
                   </div>
                   <div>
@@ -55,14 +55,14 @@ const SignupPage = () => {
                       Apply for Issuer Access
                     </h1>
                     <p className="text-sm text-slate-400 leading-relaxed max-w-[420px]">
-                      Join the network of verified institutions. Once approved, you can issue immutable, blockchain-backed certificates on the BhoomiNet protocol.
+                      Join the network of verified institutions. Once approved, you can issue immutable, blockchain-backed certificates on the Provectus protocol.
                     </p>
                   </div>
                 </div>
                 
                 {/* Right-aligned Icon Graphic */}
                 <div className="hidden md:flex w-16 h-16 bg-gradient-to-br from-[#5E6AD2]/20 to-indigo-500/5 border border-[#5E6AD2]/30 rounded-2xl items-center justify-center shadow-[inset_0_0_15px_rgba(94,106,210,0.2)] shrink-0">
-                  <ShieldCheck size={28} className="text-[#5E6AD2]" />
+                  <ShieldCheck size={28} className="text-[#d2a25e]" />
                 </div>
               </div>
 
@@ -78,7 +78,7 @@ const SignupPage = () => {
                   Already approved?{' '}
                   <Link
                     to="/login"
-                    className="text-[#5E6AD2] hover:text-white font-medium transition-colors inline-flex items-center gap-1 group"
+                    className="text-[#d2a25e] hover:text-white font-medium transition-colors inline-flex items-center gap-1 group"
                   >
                     Sign in <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </Link>
@@ -99,7 +99,7 @@ const SignupPage = () => {
         >
           <div className="bg-[#0A0A0C]/60 backdrop-blur-md border border-white/[0.06] rounded-2xl p-5 space-y-2 hover:bg-[#0A0A0C]/80 transition-colors group">
             <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 group-hover:text-white transition-colors uppercase tracking-widest">
-              <ShieldCheck size={14} className="text-[#5E6AD2]" />
+              <ShieldCheck size={14} className="text-[#d2a25e]" />
               KYC Verified
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -109,7 +109,7 @@ const SignupPage = () => {
 
           <div className="bg-[#0A0A0C]/60 backdrop-blur-md border border-white/[0.06] rounded-2xl p-5 space-y-2 hover:bg-[#0A0A0C]/80 transition-colors group">
             <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 group-hover:text-white transition-colors uppercase tracking-widest">
-              <Globe size={14} className="text-[#5E6AD2]" />
+              <Globe size={14} className="text-[#d2a25e]" />
               Global Registry
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">

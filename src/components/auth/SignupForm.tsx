@@ -84,7 +84,7 @@ const SignupForm = () => {
         <div className="space-y-1.5">
           <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1">College ID</label>
           <div className="relative group">
-            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#5E6AD2] transition-colors" size={14} />
+            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#d2a25e] transition-colors" size={14} />
             <input required name="college_id" value={formData.college_id} onChange={handleChange} placeholder="ABC-IND-001" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white focus:ring-1 focus:ring-[#5E6AD2]/50 focus:border-[#5E6AD2] outline-none transition-all font-mono" />
           </div>
         </div>
@@ -94,7 +94,7 @@ const SignupForm = () => {
       <div className="space-y-1.5">
         <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A8F98] ml-1">Full Address</label>
         <div className="relative group">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#5E6AD2] transition-colors" size={14} />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#d2ad5e] transition-colors" size={14} />
           <input required name="college_address" value={formData.college_address} onChange={handleChange} placeholder="MG Road, Indore" className="w-full bg-[#0F0F12] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white focus:ring-1 focus:ring-[#5E6AD2]/50 focus:border-[#5E6AD2] outline-none transition-all" />
         </div>
       </div>
@@ -148,7 +148,7 @@ const SignupForm = () => {
       <button 
         type="submit" 
         disabled={isLoading}
-        className="w-full mt-4 bg-white text-black hover:bg-slate-200 disabled:bg-slate-800 disabled:text-slate-500 font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+        className="w-full mt-4 bg-[#d29a4b] text-white hover:bg-[#f19721] disabled:bg-slate-800 disabled:text-slate-500 font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
       >
         {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'Submit Application'}
       </button>

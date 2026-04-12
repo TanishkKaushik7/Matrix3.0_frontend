@@ -294,7 +294,7 @@ const AdminIssuers = () => {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-1 py-2.5 rounded-xl bg-[#5E6AD2] hover:bg-[#6872D9] text-white text-sm font-medium transition-all shadow-[0_0_20px_rgba(94,106,210,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-[#d2ad5e] hover:bg-[#f4b746] text-white text-sm font-medium transition-all shadow-[0_0_20px_rgba(94,106,210,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isSubmitting ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

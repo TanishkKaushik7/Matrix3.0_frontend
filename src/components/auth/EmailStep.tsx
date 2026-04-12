@@ -31,21 +31,21 @@ const EmailStep = ({ onSubmit, isLoading, externalError }: EmailStepProps) => {
           Welcome back
         </h2>
         <p className="text-sm text-[#8A8F98]">
-          Enter your institutional email to access the BhoomiNet portal.
+          Enter your institutional email to access the Provectus portal.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Mail size={18} className="text-[#8A8F98] group-focus-within:text-[#5E6AD2] transition-colors" />
+            <Mail size={18} className="text-[#8A8F98] group-focus-within:text-[#f2c55c] transition-colors" />
           </div>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@university.edu"
+            placeholder="name@example.com"
             className="w-full bg-[#0F0F12] border border-white/10 rounded-lg pl-11 pr-4 py-3 text-[#EDEDEF] placeholder:text-[#555] focus:outline-none focus:ring-2 focus:ring-[#5E6AD2]/50 focus:border-[#5E6AD2] transition-all font-sans"
           />
         </div>
@@ -64,7 +64,7 @@ const EmailStep = ({ onSubmit, isLoading, externalError }: EmailStepProps) => {
         <button
           type="submit"
           disabled={isLoading || !email}
-          className="w-full bg-[#5E6AD2] hover:bg-[#6872D9] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_4px_12px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group relative overflow-hidden"
+          className="w-full bg-[#d2ad5e] hover:bg-[#fca415] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg shadow-[0_4px_12px_rgba(94,106,210,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 group relative overflow-hidden"
         >
           {isLoading ? (
             <Loader2 size={20} className="animate-spin" />
@@ -83,7 +83,7 @@ const EmailStep = ({ onSubmit, isLoading, externalError }: EmailStepProps) => {
 
       <div className="pt-4 border-t border-white/[0.06]">
         <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-          <ShieldCheck size={18} className="text-[#5E6AD2] shrink-0 mt-0.5" />
+          <ShieldCheck size={18} className="text-[#f5a80e] shrink-0 mt-0.5" />
           <p className="text-[10px] leading-relaxed text-[#8A8F98] uppercase tracking-widest font-mono">
             Institutional access only. All authentication attempts are cryptographically logged.
           </p>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
 
 declare global {
@@ -8,11 +8,38 @@ declare global {
 }
 export const useWeb3 = () => {
   const [account, setAccount] = useState<string | null>(null);
+  const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isWhitelisted, setIsWhitelisted] = useState(true); // Always true for now based on your previous setup
 
-  const connectWallet = useCallback(async () => {
+  const normalizeAddress = (address: string) => {
+    try {
+      return ethers.getAddress(address);
+    } catch {
+      return address;
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.ethereum) return;
+
+    const onAccountsChanged = (accounts: string[]) => {
+      const normalized = accounts.map(normalizeAddress);
+      setAvailableAccounts(normalized);
+      setAccount(normalized[0] ?? null);
+    };
+
+    window.ethereum.on('accountsChanged', onAccountsChanged);
+
+    return () => {
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', onAccountsChanged);
+      }
+    };
+  }, []);
+
+  const connectWallet = useCallback(async (forceAccountPrompt = false) => {
     setError(null);
 
     // 1. Check if window.ethereum exists (MetaMask or similar wallet is installed)
@@ -31,26 +58,28 @@ export const useWeb3 = () => {
     try {
       // 3. Request account access
       const provider = new ethers.BrowserProvider(window.ethereum);
-      
-      // This will open the MetaMask popup asking the user to connect
-      await provider.send("eth_requestAccounts", []);
-      
-      // 4. Get the connected signer and their address
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      
-      setAccount(address);
-      setIsWhitelisted(true); // Placeholder for actual whitelist logic if needed later
 
-      // Optional: Setup event listener for account changes
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAccount(accounts[0]);
-        } else {
-          // User disconnected their wallet from the site
-          setAccount(null);
+      // Force MetaMask to show the account picker when user explicitly wants to choose.
+      if (forceAccountPrompt) {
+        try {
+          await provider.send('wallet_requestPermissions', [{ eth_accounts: {} }]);
+        } catch (permissionErr: any) {
+          if (permissionErr?.code === 4001) {
+            throw permissionErr;
+          }
         }
-      });
+      }
+
+      const grantedAccounts = (await provider.send('eth_requestAccounts', [])) as string[];
+      const normalizedAccounts = grantedAccounts.map(normalizeAddress);
+
+      if (normalizedAccounts.length === 0) {
+        throw new Error('No MetaMask account is connected.');
+      }
+
+      setAvailableAccounts(normalizedAccounts);
+      setAccount(normalizedAccounts[0]);
+      setIsWhitelisted(true); // Placeholder for actual whitelist logic if needed later
 
     } catch (err: any) {
       console.error("Wallet connection failed:", err);
@@ -65,17 +94,62 @@ export const useWeb3 = () => {
     }
   }, []);
 
+  const selectAccount = useCallback(async (address: string) => {
+    setError(null);
+
+    if (typeof window === 'undefined' || !window.ethereum) {
+      setError('MetaMask is not installed.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const authorized = (await provider.send('eth_accounts', [])) as string[];
+      const normalizedAuthorized = authorized.map(normalizeAddress);
+      const targetAddress = normalizeAddress(address);
+
+      setAvailableAccounts(normalizedAuthorized);
+
+      const hasAccess = normalizedAuthorized.some(
+        (item) => item.toLowerCase() === targetAddress.toLowerCase()
+      );
+
+      if (!hasAccess) {
+        throw new Error('Selected account is not authorized for this site. Click "Choose from MetaMask" first.');
+      }
+
+      const signer = await provider.getSigner(targetAddress);
+      const signerAddress = normalizeAddress(await signer.getAddress());
+      setAccount(signerAddress);
+      setIsWhitelisted(true);
+    } catch (err: any) {
+      console.error('Account selection failed:', err);
+      if (err.code === 4001) {
+        setError('Account selection was rejected in MetaMask.');
+      } else {
+        setError(err.message || 'Failed to select MetaMask account.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const disconnectWallet = useCallback(() => {
     setAccount(null);
+    setAvailableAccounts([]);
     setIsWhitelisted(false);
   }, []);
 
   return {
     account,
+    availableAccounts,
     isWhitelisted,
     isLoading,
     error,
     connectWallet,
+    selectAccount,
     disconnectWallet
   };
 };

@@ -45,7 +45,7 @@ const LoginPage = () => {
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-6 h-6 border-2 border-[#5E6AD2]/30 border-t-[#5E6AD2] rounded-full"
+          className="w-6 h-6 border-2 border-[#5E6AD2]/30 border-t-[#ef9c37] rounded-full"
         />
       </div>
     );
@@ -93,10 +93,10 @@ const LoginPage = () => {
                 <div className="mb-10">
                   <div className="flex items-center justify-between mb-8">
                     <div className="w-12 h-12 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-2xl flex items-center justify-center shadow-[inset_0_0_12px_rgba(94,106,210,0.1)]">
-                      <Lock size={22} className="text-[#5E6AD2]" />
+                      <Lock size={22} className="text-[#e6ae3e]" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-8 rounded-full bg-[#5E6AD2] shadow-[0_0_15px_rgba(94,106,210,0.4)]" />
+                      <div className="h-1.5 w-8 rounded-full bg-[#d2a05e] shadow-[0_0_15px_rgba(94,106,210,0.4)]" />
                       <div className="h-1.5 w-8 rounded-full bg-white/5" />
                     </div>
                   </div>
@@ -105,7 +105,7 @@ const LoginPage = () => {
                     Institutional Login
                   </h1>
                   <p className="text-sm text-slate-400 leading-relaxed">
-                    Verify your institutional credentials to access the BhoomiNet node.
+                    Verify your institutional credentials to access the Provectus node.
                   </p>
                 </div>
 
@@ -130,11 +130,11 @@ const LoginPage = () => {
                 <div className="mb-10">
                   <div className="flex items-center justify-between mb-8">
                     <div className="w-12 h-12 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-2xl flex items-center justify-center">
-                      <ShieldCheck size={22} className="text-[#5E6AD2]" />
+                      <ShieldCheck size={22} className="text-[#f1b036]" />
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-8 rounded-full bg-white/10" />
-                      <div className="h-1.5 w-8 rounded-full bg-[#5E6AD2] shadow-[0_0_15px_rgba(94,106,210,0.4)]" />
+                      <div className="h-1.5 w-8 rounded-full bg-[#f4b93a] shadow-[0_0_15px_rgba(94,106,210,0.4)]" />
                     </div>
                   </div>
                   
@@ -149,13 +149,13 @@ const LoginPage = () => {
                 {/* Email Display / Change Button */}
                 <div className="flex items-center justify-between bg-black/40 border border-white/[0.05] rounded-2xl px-5 py-4 mb-8 group hover:border-white/10 transition-colors">
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <Mail size={16} className="text-[#5E6AD2] shrink-0" />
+                    <Mail size={16} className="text-[#f2a93c] shrink-0" />
                     <span className="text-sm text-slate-300 truncate font-mono">{email}</span>
                   </div>
                   <button 
                     onClick={handleBack}
                     disabled={flowLoading}
-                    className="text-[10px] font-bold text-[#5E6AD2] hover:text-white uppercase tracking-widest transition-colors ml-4 shrink-0 disabled:opacity-30"
+                    className="text-[10px] font-bold text-[#eabf49] hover:text-white uppercase tracking-widest transition-colors ml-4 shrink-0 disabled:opacity-30"
                   >
                     Change
                   </button>
@@ -181,19 +181,15 @@ const LoginPage = () => {
           className="flex flex-col items-center gap-6 mt-4"
         >
           <div className="flex items-center gap-6 bg-white/[0.02] border border-white/[0.05] px-6 py-3 rounded-2xl backdrop-blur-md">
-            <div className="flex items-center gap-2.5 text-[9px] font-mono text-slate-500 uppercase tracking-[0.25em]">
-              <ShieldCheck size={12} className="text-[#5E6AD2]" />
-              AES-256 Auth
-            </div>
             <div className="w-[1px] h-3 bg-white/10" />
             <div className="flex items-center gap-2.5 text-[9px] font-mono text-slate-500 uppercase tracking-[0.25em]">
-              <Fingerprint size={12} className="text-[#5E6AD2]" />
+              <Fingerprint size={12} className="text-[#f5a80e]" />
               End-to-End
             </div>
           </div>
           
           <p className="text-[10px] text-slate-600 uppercase tracking-[0.3em]">
-            BhoomiNet Security Protocol v2.4
+            Provectus Security Protocol v2.4
           </p>
         </motion.div>
       </div>

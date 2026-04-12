@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getIssuers, type Issuer } from '../services/adminApi';
+import { getIssuers } from '../services/adminApi';
 
 // Reusable Stat Card Component
 const StatCard = ({ title, value, icon, trend, colorClass, delay }: any) => (
@@ -93,7 +93,7 @@ const AdminDashboard = () => {
             Welcome back, {user?.name?.split(' ')[0] || "Admin"}
           </h1>
           <p className="text-sm text-[#8A8F98]">
-            Here is what's happening on the BhoomiNet protocol today.
+            Here is what's happening on the Provectus protocol today.
           </p>
         </motion.div>
 
@@ -104,7 +104,7 @@ const AdminDashboard = () => {
         >
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
           <span className="text-xs font-mono text-gray-300 uppercase tracking-widest flex items-center gap-2">
-            <Globe size={12} className="text-[#5E6AD2]" />
+            <Globe size={12} className="text-[#f5b846]" />
             Polygon Amoy: Active
           </span>
         </motion.div>
@@ -115,7 +115,7 @@ const AdminDashboard = () => {
         <StatCard 
           title="Total Applications" 
           value={isLoading ? "-" : issuers.length} 
-          icon={<Users size={20} className="text-[#5E6AD2]" />} 
+          icon={<Users size={20} className="text-[#d2b35e]" />} 
           colorClass="bg-[#5E6AD2]/10 border-[#5E6AD2]/20"
           delay={0.1}
         />

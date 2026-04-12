@@ -84,7 +84,7 @@ const AdminRequests = () => {
             </span>
           </h1>
           <p className="text-sm text-[#8A8F98] mt-1">
-            Review and verify new applications for the BhoomiNet protocol.
+            Review and verify new applications for the Provectus protocol.
           </p>
         </div>
       </div>
@@ -225,7 +225,7 @@ const AdminRequests = () => {
               <div className="flex items-center justify-between p-6 border-b border-white/[0.04]">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-[#5E6AD2]/10 rounded-lg border border-[#5E6AD2]/20">
-                    <Building2 size={18} className="text-[#5E6AD2]" />
+                    <Building2 size={18} className="text-[#d2ad5e]" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-white leading-tight">Institution Details</h2>
@@ -265,21 +265,21 @@ const AdminRequests = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1 flex items-start gap-2">
-                      <Mail size={14} className="text-[#5E6AD2] mt-0.5" />
+                      <Mail size={14} className="text-[#d2ad5e] mt-0.5" />
                       <div>
                         <p className="text-[10px] uppercase text-slate-500 mb-0.5">Email Address</p>
                         <p className="text-sm text-white">{selectedIssuer.email}</p>
                       </div>
                     </div>
                     <div className="space-y-1 flex items-start gap-2">
-                      <Phone size={14} className="text-[#5E6AD2] mt-0.5" />
+                      <Phone size={14} className="text-[#d2ad5e] mt-0.5" />
                       <div>
                         <p className="text-[10px] uppercase text-slate-500 mb-0.5">Phone Number</p>
                         <p className="text-sm text-white">{selectedIssuer.phone_number || 'Not provided'}</p>
                       </div>
                     </div>
                     <div className="space-y-1 flex items-start gap-2 col-span-1 md:col-span-2">
-                      <MapPin size={14} className="text-[#5E6AD2] mt-0.5 shrink-0" />
+                      <MapPin size={14} className="text-[#d2ad5e] mt-0.5 shrink-0" />
                       <div>
                         <p className="text-[10px] uppercase text-slate-500 mb-0.5">Physical Address</p>
                         <p className="text-sm text-white">{selectedIssuer.college_address || 'Not provided'}</p>

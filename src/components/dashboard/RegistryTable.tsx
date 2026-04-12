@@ -134,7 +134,7 @@ const RegistryTable = () => {
                     >
                       {/* Record ID */}
                       <td className="p-4">
-                        <span className="text-sm font-mono text-slate-300 group-hover:text-[#5E6AD2] transition-colors">
+                        <span className="text-sm font-mono text-slate-300 group-hover:text-[#d2ad5e] transition-colors">
                           #{cert.certificate_id}
                         </span>
                       </td>
@@ -143,7 +143,7 @@ const RegistryTable = () => {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 flex items-center justify-center border border-[#5E6AD2]/20">
-                            <Fingerprint size={14} className="text-[#5E6AD2]" />
+                            <Fingerprint size={14} className="text-[#d2ad5e]" />
                           </div>
                           <span className="text-xs font-mono text-white bg-white/5 px-2 py-1 rounded border border-white/10">
                             {truncateHash(cert.hash)}
@@ -168,7 +168,7 @@ const RegistryTable = () => {
                             href={`https://gateway.pinata.cloud/ipfs/${cert.cid}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-400 hover:text-[#5E6AD2] hover:bg-[#5E6AD2]/10 transition-all title='View IPFS Asset'"
+                            className="p-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-400 hover:text-[#e8ba47] hover:bg-[#5E6AD2]/10 transition-all title='View IPFS Asset'"
                           >
                             <Download size={14} />
                           </a>
