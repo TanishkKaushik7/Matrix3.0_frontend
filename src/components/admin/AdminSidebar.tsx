@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   Inbox, 
   ShieldCheck, 
-  Settings, 
   LogOut, 
   Hexagon
 } from 'lucide-react';
