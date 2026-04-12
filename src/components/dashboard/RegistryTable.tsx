@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  ExternalLink, 
-  FileText, 
+  ExternalLink,  
   Download, 
   Filter,
   Clock,
-  CheckCircle2,
   Fingerprint
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
